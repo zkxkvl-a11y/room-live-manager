@@ -173,6 +173,24 @@ export default function App() {
       setRemoteError('실무자 조회 데이터 동기화 실패: '+String(error)))
   },[isAdmin,store,remoteState])
   useEffect(()=>{
+    if(!isAdmin||remoteState!=='ready'||!readyRef.current)return
+    // Stage finance from the same authoritative stream used by the administrator.
+    // Do not promote V2 to the live ledger here: workers still write to roomLive.
+    const financeRef=ref(database,'roomLiveV2/finance')
+    const finance={payments:store.payments,sessions:store.sessions}
+    void runTransaction(financeRef,current=>{
+      if(current===null)return
+      // Never overwrite a newer snapshot with an older event arriving out of order.
+      const currentPayments=Array.isArray(current.payments)?current.payments:Object.values(current.payments??{})
+      const existingIds=new Set((currentPayments as Payment[]).map(p=>p.id))
+      const incomingIds=new Set(finance.payments.map(p=>p.id))
+      if([...existingIds].some(id=>!incomingIds.has(id)))return
+      return finance
+    },{applyLocally:false}).then(result=>{
+      if(!result.committed)setRemoteError('V2 장부 갱신 보류: 기존 V2 결제에 원본에 없는 ID가 있습니다. 관리자 대조 필요')
+    }).catch(error=>setRemoteError('V2 장부 동기화 실패: '+String(error)))
+  },[isAdmin,store,remoteState])
+  useEffect(()=>{
     if(!account||role==='pending'||role==='observer')return
     setRemoteError('')
     const unsubscribe=onValue(roomLiveRef,snapshot=>{
