@@ -1,0 +1,28 @@
+name: ROOM LIVE safety checks
+
+on:
+  push:
+    branches: [main, patch/room-live-spark-stability]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Checkout and split-store regression tests
+        run: npm test
+      - name: TypeScript and Vite production build
+        run: npm run build
+      - name: Lint
+        run: npm run lint
