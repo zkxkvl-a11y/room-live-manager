@@ -32,3 +32,14 @@ test('worker projection never gains payments when finance is unavailable',()=>{
   const result=mergeSplit(toOperations(fixture()),null)
   assert.deepEqual(result.payments,[])
 })
+
+test('unknown activity types are excluded by default',()=>{
+  const state=fixture()
+  state.logs.push({id:'secret',at:3,room:'1T',action:'특별정산 · 70000원'})
+  assert.deepEqual(toOperations(state).logs.map(x=>x.id),['l1'])
+})
+test('financial data inside otherwise operational logs is excluded',()=>{
+  const state=fixture()
+  state.logs.push({id:'leak',at:3,room:'1T',action:'방 시작 · 카드 50,000원'})
+  assert.deepEqual(toOperations(state).logs.map(x=>x.id),['l1'])
+})
