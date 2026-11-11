@@ -4,7 +4,7 @@ export const OPERATIONS_PATH='roomLiveV2/operations'
 export const FINANCE_PATH='roomLiveV2/finance'
 export const CHECKOUT_PATH='roomLiveV2/checkoutRequests'
 
-const financeLog=(action:string)=>action.includes('결제')||action.includes('장부')||action.includes('미수')||action.includes('원 →')||action.includes('원 ·')
+const financeLog=(action:string)=>/결제|장부|미수|매출|수금|정정|금액|현금|카드|이체|와리|WT|원 →|원 ·/.test(action)
 export function toOperations(store:Store){
   const {payments: _payments,...rest}=store
   void _payments
