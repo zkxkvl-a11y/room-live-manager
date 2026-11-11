@@ -424,7 +424,7 @@ export default function App() {
   function start(id: string) { const at = Date.now(); const room=store.rooms.find(r=>roomKey(r)===id);if(!room)return; setStore(s => ({ ...s, rooms: s.rooms.map(r => roomKey(r) === id ? { ...r, started: at, ends: at + 3600000 } : r), sessions: [{ id: crypto.randomUUID(), room: room.id, roomUid:id, started: at, ended: null }, ...s.sessions], logs: [record(id, '방 시작 · 60분'), ...s.logs] })) }
   function saveCheckout() {
     if (!checkout || !payMethod) { alert('결제 수단을 선택해 주세요.'); return }
-    if (!/^\\d+$/.test(payAmount.trim()) || !Number.isSafeInteger(Number(payAmount)) || Number(payAmount) <= 0) { alert('결제금액을 1원 이상의 숫자로 입력해 주세요.'); return }
+    if (!/^\d+$/.test(payAmount.trim()) || !Number.isSafeInteger(Number(payAmount)) || Number(payAmount) <= 0) { alert('결제금액을 1원 이상의 숫자로 입력해 주세요.'); return }
     if(!canOperate||!readyRef.current){alert('서버 연결 후 결제할 수 있습니다.');return}
     const roomUid=checkout, method=payMethod, amount=Number(payAmount), at=Date.now()
     const manager=payManager.trim(), memo=payMemo.trim(), wari=payWari.trim(), wt=payWt.trim()
@@ -457,6 +457,19 @@ export default function App() {
           }
         },{applyLocally:false})
         if(!result.committed){alert('이미 마감됐거나 다른 사용자가 방 상태를 변경했습니다. 최신 상태를 확인해 주세요.');return}
+        // The legacy roomLive transaction remains authoritative until the secure cutover.
+        // A deterministic ID links this optional create-only submission to its committed payment.
+        // Do not retry the checkout if mirroring fails: the payment is already recorded.
+        if(account){
+          try{
+            await set(ref(database,'roomLiveV2/paymentSubmissions/'+paymentId),{
+              id:paymentId,uid:account.uid,roomUid,amount,method,at
+            })
+          }catch(error){
+            setRemoteError('결제는 원본 장부에 저장됐으나 V2 제출 미러링에 실패했습니다: '+String(error))
+            alert('결제와 방 마감은 완료됐습니다. 다만 V2 제출 기록이 저장되지 않았습니다. 관리자에게 확인을 요청하세요.')
+          }
+        }
         setCheckout(null);setDetail(null);setPayMethod(null);setPayAmount('');setPayManager('');setPayMemo('')
       }catch(error){setRemoteError('결제 저장 실패: '+String(error));alert('결제 저장 실패. 방을 마감하지 않았습니다.')}
     }
