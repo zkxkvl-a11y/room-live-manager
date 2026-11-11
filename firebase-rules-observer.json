@@ -15,6 +15,10 @@
         ".write": "auth != null && auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2'",
         ".validate": "newData.val() === 'staff' || newData.val() === 'observer'"
       }
+    },
+    "roomLiveLedgerMigration": {
+      ".read": "auth != null && auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2'",
+      ".write": "auth != null && auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2'"
     }
   }
 }
