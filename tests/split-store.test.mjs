@@ -43,3 +43,12 @@ test('financial data inside otherwise operational logs is excluded',()=>{
   state.logs.push({id:'leak',at:3,room:'1T',action:'방 시작 · 카드 50,000원'})
   assert.deepEqual(toOperations(state).logs.map(x=>x.id),['l1'])
 })
+
+test('future fields cannot silently leak into worker operations',()=>{
+  const state={...fixture(),finance:{payments:[{amount:123}]},privateMemo:'internal',futureSecret:'secret'}
+  const operations=toOperations(state)
+  assert.equal(Object.hasOwn(operations,'privateMemo'),false)
+  assert.equal(Object.hasOwn(operations,'futureSecret'),false)
+  assert.equal(Object.hasOwn(operations,'finance'),false)
+  assert.equal(Object.hasOwn(operations,'payments'),false)
+})
