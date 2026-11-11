@@ -55,5 +55,5 @@ test('V2 root transaction is administrator-only, finance stays private',()=>{
   assert.equal(rules.roomLiveV2['.read'],rules.roomLive['.read'])
   assert.equal(rules.roomLiveV2['.write'],rules.roomLive['.write'])
   assert.doesNotMatch(rules.roomLiveV2['.read'],/roomLiveAccess|worker|staff/)
-  assert.match(app,/operations:toOperations\(next\),finance:/)
+  assert.match(app,/applyV2Checkout\(current as Parameters/)
 })
