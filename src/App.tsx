@@ -6,6 +6,7 @@ import { onValue, runTransaction, ref, set, remove } from 'firebase/database'
 import { auth, database, roomLiveRef, ADMIN_UID } from './firebase'
 
 import { seed, read, normalizeRemote, format, operatingDay, ledgerDay, date } from './store-model'
+import { workerViewOf } from './worker-view'
 import type { ObserverRoom, ObserverSnapshot, Room, Log, Payment, Store } from './store-model'
 
 export default function App() {
@@ -232,16 +233,6 @@ export default function App() {
     catch(error){setRemoteError('로그인 실패: '+(error instanceof Error?error.message:String(error)))}
     finally{setLoginBusy(false)}
   }
-  function workerViewOf(source:Store){
-    // Strict allowlist: never copy payments, logs, sessions, visits or any free-form finance notes.
-    return {
-      rooms:source.rooms.map(room=>({id:room.id,uid:room.uid??room.id,groupId:room.groupId??null,started:room.started,ends:room.ends,tags:room.tags})),
-      attendance:(source.attendance??[]).map(person=>({id:person.id,name:person.name,working:person.working})),
-      shops:(source.shops??[]).map(shop=>({id:shop.id,name:shop.name})),
-      groups:(source.groups??[]).map(group=>({id:group.id,shopId:group.shopId,name:group.name,layout:group.layout??[]})),
-      updatedAt:Date.now()
-    }
-  }
   async function importLocal(){
     if(!isAdmin)return
     if(!confirm('이 휴대폰의 기존 데이터를 최초 서버 데이터로 등록할까요? 서버에 데이터가 이미 있다면 덮어쓰지 않습니다.'))return
@@ -274,7 +265,18 @@ export default function App() {
     })
     setAdjust(null)
   }
-  function start(id: string) { const at = Date.now(); const room=store.rooms.find(r=>roomKey(r)===id);if(!room)return; setStore(s => ({ ...s, rooms: s.rooms.map(r => roomKey(r) === id ? { ...r, started: at, ends: at + 3600000 } : r), sessions: [{ id: crypto.randomUUID(), room: room.id, roomUid:id, started: at, ended: null }, ...s.sessions], logs: [record(id, '방 시작 · 60분'), ...s.logs] })) }
+  function start(id: string) {
+    const at=Date.now(),sessionId=crypto.randomUUID(),logId=crypto.randomUUID()
+    setStore(s=>{
+      const room=s.rooms.find(r=>roomKey(r)===id)
+      if(!room||room.started!==null||s.sessions.some(x=>sameRoom(x,id)&&x.ended===null))return s
+      return {...s,
+        rooms:s.rooms.map(r=>roomKey(r)===id?{...r,started:at,ends:at+3600000}:r),
+        sessions:[{id:sessionId,room:room.id,roomUid:id,started:at,ended:null},...s.sessions],
+        logs:[{id:logId,at,room:room.id,roomUid:id,action:'방 시작 · 60분'},...s.logs]
+      }
+    })
+  }
   function saveCheckout() {
     if (!checkout || !payMethod) { alert('결제 수단을 선택해 주세요.'); return }
     if (!/^\d+$/.test(payAmount.trim()) || !Number.isSafeInteger(Number(payAmount)) || Number(payAmount) <= 0) { alert('결제금액을 1원 이상의 숫자로 입력해 주세요.'); return }
