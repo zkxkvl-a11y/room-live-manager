@@ -23,11 +23,11 @@ export function applyCheckout(previous:Store,request:CheckoutRequest):Store|unde
   const active=previous.rooms.find(r=>(r.uid??r.id)===roomUid)
   if(!active||active.started===null)return
   const openSessions=previous.sessions.filter(s=>sameRoom(s)&&s.ended===null)
-  if(openSessions.length!==1||openSessions[0].started!==active.started)return
+  if(openSessions.length>1||(openSessions.length===1&&openSessions[0].started!==active.started))return
   const session=openSessions[0]
   const payment:Payment={
     id:paymentId,room:active.id,roomUid,at,startedAt:active.started,amount,method,
-    sessionId:session.id,manager,memo,wari,wt,groupId:active.groupId,
+    sessionId:session?.id??null,manager,memo,wari,wt,groupId:active.groupId,
     shopId:previous.groups?.find(g=>g.id===active.groupId)?.shopId
   }
   const logs:Log[]=[
