@@ -3,25 +3,28 @@ import './App.css'
 
 type Shop = { id: string; name: string }
 type Group = { id: string; shopId: string; name: string; layout: (string | null)[] }
-type Room = { id: string; groupId?: string; started: number | null; ends: number | null; tags: string[] }
-type Log = { id: string; at: number; room: string; action: string }
-type Visit = { id: string; tag: string; room: string; entered: number; exited: number | null }
-type Session = { id: string; room: string; started: number; ended: number | null }
-type Payment = { id: string; room: string; at: number; amount: number; method: '카드' | '현금' | '이체' | '미수'; sessionId: string | null; manager?: string; memo?: string; shopId?: string; groupId?: string; wari?: string; wt?: string }
+type Room = { id: string; uid?: string; groupId?: string; started: number | null; ends: number | null; tags: string[] }
+type Log = { id: string; at: number; room: string; roomUid?: string; action: string }
+type Visit = { id: string; tag: string; room: string; roomUid?: string; entered: number; exited: number | null }
+type Session = { id: string; room: string; roomUid?: string; started: number; ended: number | null }
+type Payment = { id: string; room: string; roomUid?: string; at: number; amount: number; method: '카드' | '현금' | '이체' | '미수'; sessionId: string | null; manager?: string; memo?: string; shopId?: string; groupId?: string; wari?: string; wt?: string }
 type Store = { rooms: Room[]; tags: string[]; logs: Log[]; visits: Visit[]; sessions: Session[]; payments: Payment[]; layout?: (string | null)[]; shops?: Shop[]; groups?: Group[]; showWari?: boolean; showWt?: boolean }
 const seed: Store = { rooms: Array.from({ length: 6 }, (_, i) => ({ id: `${i + 1}T`, started: null, ends: null, tags: [] })), tags: ['A01', 'A02', 'A03', 'A04', 'A05', 'A06'], logs: [], visits: [], sessions: [], payments: [], layout: [], shops: [{ id: 'shop-a', name: '가게 A' }, { id: 'shop-b', name: '가게 B' }], groups: [{ id: 'group-default', shopId: 'shop-a', name: '기본 묶음', layout: [] }], showWari: true, showWt: true }
 function read(): Store {
   try {
     const raw = localStorage.getItem('room-live-v1')
-    if (!raw) return seed
+    if (!raw) return {...seed,rooms:seed.rooms.map(r=>({...r,uid:crypto.randomUUID(),groupId:'group-default'}))}
     const old = JSON.parse(raw) as Store
     const shops = old.shops?.length ? old.shops : seed.shops!
     const groups = old.groups?.length ? old.groups : seed.groups!
-    const rooms = (old.rooms ?? seed.rooms).map(r => ({ ...r, groupId: r.groupId ?? groups[0].id }))
-    const layout = old.layout?.length ? old.layout : rooms.map(r => r.id)
-    const migrated = groups.map((g,i) => ({ ...g, layout: g.layout?.length ? g.layout : i===0 ? layout : [] }))
-    const payments = (old.payments ?? []).map(p => ({ ...p, groupId: p.groupId ?? rooms.find(r=>r.id===p.room)?.groupId ?? groups[0].id, shopId: p.shopId ?? groups.find(g=>g.id===(rooms.find(r=>r.id===p.room)?.groupId ?? groups[0].id))?.shopId ?? shops[0].id }))
-    return { ...seed, ...old, rooms, shops, groups: migrated, payments }
+    const rooms = (old.rooms ?? seed.rooms).map(r => ({ ...r, uid: r.uid ?? crypto.randomUUID(), groupId: r.groupId ?? groups[0].id }))
+    const byName = (name:string) => rooms.find(r=>r.id===name)
+    const layout = old.layout?.length ? old.layout : rooms.map(r=>r.id)
+    const migrated = groups.map((g,i)=>({...g,layout:(g.layout?.length ? g.layout : i===0 ? layout : []).map(key=>key===null?null:rooms.find(r=>r.uid===key&&r.groupId===g.id)?.uid??rooms.find(r=>r.id===key&&r.groupId===g.id)?.uid??null)}))
+    const enrich = <T extends {room:string;roomUid?:string}>(items:T[])=>items.map(x=>({...x,roomUid:x.roomUid??byName(x.room)?.uid}))
+    const payments = (old.payments??[]).map(p=>({...p,roomUid:p.roomUid??byName(p.room)?.uid,groupId:p.groupId??byName(p.room)?.groupId??groups[0].id,shopId:p.shopId??groups.find(g=>g.id===(byName(p.room)?.groupId??groups[0].id))?.shopId??shops[0].id}))
+    return {...seed,...old,rooms,shops,groups:migrated,payments,logs:enrich(old.logs??[]),visits:enrich(old.visits??[]),sessions:enrich(old.sessions??[])}
+
   } catch { return seed }
 }
 const format = (ms: number) => { const n = Math.max(0, Math.ceil(ms / 1000)); return [Math.floor(n / 3600), Math.floor(n % 3600 / 60), n % 60].map(x => String(x).padStart(2, '0')).join(':') }
@@ -55,38 +58,41 @@ export default function App() {
   const tap = useRef<{ room: string; time: number } | null>(null)
   useEffect(() => { const interval = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(interval) }, [])
   useEffect(() => { localStorage.setItem('room-live-v1', JSON.stringify(store)) }, [store])
-  const record = (room: string, action: string): Log => ({ id: crypto.randomUUID(), at: Date.now(), room, action })
+  const roomKey=(r:Room)=>r.uid??r.id
+  const roomName=(uid:string)=>store.rooms.find(r=>roomKey(r)===uid)?.id??uid
+  const record = (uid: string, action: string): Log => ({ id: crypto.randomUUID(), at: Date.now(), room:roomName(uid), roomUid:uid, action })
+  const sameRoom=(x:{room:string;roomUid?:string},uid:string)=>x.roomUid?x.roomUid===uid:x.room===roomName(uid)
   const shops = store.shops ?? seed.shops!
   const groups = store.groups ?? seed.groups!
-  const openCheckout = (id: string) => { setCheckout(id); setPayMethod(null); setPayAmount(''); setPayManager(''); setPayMemo(''); setPayWari(''); setPayWt(''); setPayWari(''); setPayWt(''); setDetail(null) }
+  const openCheckout = (id: string) => { setCheckout(id); setPayMethod(null); setPayAmount(''); setPayManager(''); setPayMemo(''); setPayWari(''); setPayWt(''); setDetail(null) }
   const touchStart = useRef<{ x: number; y: number } | null>(null)
   function changeTime(id: string, minutes: number) {
     setStore(s => {
-      const room = s.rooms.find(r => r.id === id)
+      const room = s.rooms.find(r => roomKey(r) === id)
       if (!room || (!room.ends && minutes < 0)) return s
       const time = Date.now()
-      return { ...s, rooms: s.rooms.map(r => r.id !== id ? r : { ...r, started: r.started ?? time, ends: Math.max(time, (r.ends ?? time) + minutes * 60000) }), logs: [record(id, `시간 ${minutes > 0 ? '+' : ''}${minutes}분 · 변경 전 ${room.ends ? format(room.ends - time) : '대기'} → 변경 후 ${format(Math.max(time, (room.ends ?? time) + minutes * 60000) - time)}`), ...s.logs], sessions: room.started ? s.sessions : [{ id: crypto.randomUUID(), room: id, started: time, ended: null }, ...s.sessions] }
+      return { ...s, rooms: s.rooms.map(r => roomKey(r) !== id ? r : { ...r, started: r.started ?? time, ends: Math.max(time, (r.ends ?? time) + minutes * 60000) }), logs: [record(id, `시간 ${minutes > 0 ? '+' : ''}${minutes}분 · 변경 전 ${room.ends ? format(room.ends - time) : '대기'} → 변경 후 ${format(Math.max(time, (room.ends ?? time) + minutes * 60000) - time)}`), ...s.logs], sessions: room.started ? s.sessions : [{ id: crypto.randomUUID(), room: room.id, roomUid:id, started: time, ended: null }, ...s.sessions] }
     })
     setAdjust(null)
   }
-  function start(id: string) { const at = Date.now(); setStore(s => ({ ...s, rooms: s.rooms.map(r => r.id === id ? { ...r, started: at, ends: at + 3600000 } : r), sessions: [{ id: crypto.randomUUID(), room: id, started: at, ended: null }, ...s.sessions], logs: [record(id, '방 시작 · 60분'), ...s.logs] })) }
+  function start(id: string) { const at = Date.now(); const room=store.rooms.find(r=>roomKey(r)===id);if(!room)return; setStore(s => ({ ...s, rooms: s.rooms.map(r => roomKey(r) === id ? { ...r, started: at, ends: at + 3600000 } : r), sessions: [{ id: crypto.randomUUID(), room: room.id, roomUid:id, started: at, ended: null }, ...s.sessions], logs: [record(id, '방 시작 · 60분'), ...s.logs] })) }
   function saveCheckout() {
     if (!checkout || !payMethod) { alert('결제 수단을 선택해 주세요.'); return }
     if (!/^\d+$/.test(payAmount.trim()) || !Number.isSafeInteger(Number(payAmount)) || Number(payAmount) <= 0) { alert('결제금액을 1원 이상의 숫자로 입력해 주세요.'); return }
-    const r = store.rooms.find(x => x.id === checkout)
+    const r = store.rooms.find(x => roomKey(x) === checkout)
     if (!r || !r.started) { alert('진행 중인 방이 아닙니다.'); return }
     const at = Date.now(), amount = Number(payAmount)
-    const payment: Payment = { id: crypto.randomUUID(), room: checkout, at, amount, method: payMethod, sessionId: store.sessions.filter(x => x.room === checkout && x.ended === null).sort((a,b) => b.started-a.started)[0]?.id ?? null, manager: payManager.trim(), memo: payMemo.trim(), wari: payWari.trim(), wt: payWt.trim(), groupId: r.groupId, shopId: groups.find(g => g.id === r.groupId)?.shopId }
-    setStore(v => ({ ...v, payments: [payment, ...(v.payments ?? [])], sessions: v.sessions.map(x => x.room === checkout && x.ended === null ? { ...x, ended: at } : x), visits: v.visits.map(x => x.room === checkout && x.exited === null ? { ...x, exited: at } : x), rooms: v.rooms.map(x => x.id === checkout ? { ...x, started: null, ends: null, tags: [] } : x), logs: [record(checkout, `마무리(결제) · ${payMethod} · ${amount.toLocaleString('ko-KR')}원`), ...r.tags.map(tag => record(checkout, `${tag} 퇴실 · 결제 완료`)), ...v.logs] }))
+    const payment: Payment = { id: crypto.randomUUID(), room: r.id, roomUid:checkout, at, amount, method: payMethod, sessionId: store.sessions.filter(x => sameRoom(x,checkout) && x.ended === null).sort((a,b) => b.started-a.started)[0]?.id ?? null, manager: payManager.trim(), memo: payMemo.trim(), wari: payWari.trim(), wt: payWt.trim(), groupId: r.groupId, shopId: groups.find(g => g.id === r.groupId)?.shopId }
+    setStore(v => ({ ...v, payments: [payment, ...(v.payments ?? [])], sessions: v.sessions.map(x => sameRoom(x,checkout) && x.ended === null ? { ...x, ended: at } : x), visits: v.visits.map(x => sameRoom(x,checkout) && x.exited === null ? { ...x, exited: at } : x), rooms: v.rooms.map(x => roomKey(x) === checkout ? { ...x, started: null, ends: null, tags: [] } : x), logs: [record(checkout, `마무리(결제) · ${payMethod} · ${amount.toLocaleString('ko-KR')}원`), ...r.tags.map(tag => record(checkout, `${tag} 퇴실 · 결제 완료`)), ...v.logs] }))
     setCheckout(null); setDetail(null); setPayMethod(null); setPayAmount(''); setPayManager(''); setPayMemo('')
   }
   function place(tag: string, destination: string | null) {
     setStore(s => {
-      const origin = s.rooms.find(r => r.tags.includes(tag))?.id
-      if (origin === destination) return s
+      const origin = s.rooms.find(r => r.tags.includes(tag))
+      if (origin && roomKey(origin) === destination) return s
       const at = Date.now()
-      const logs = [...(origin ? [record(origin, `${tag} 퇴실`)] : []), ...(destination ? [record(destination, `${tag} 입실`)] : [])]
-      return { ...s, rooms: s.rooms.map(r => ({ ...r, tags: r.id === destination ? [...r.tags.filter(t => t !== tag), tag] : r.tags.filter(t => t !== tag) })), logs: [...logs, ...s.logs], visits: [...(destination ? [{ id: crypto.randomUUID(), tag, room: destination, entered: at, exited: null }] : []), ...s.visits.map(v => v.tag === tag && v.exited === null ? { ...v, exited: at } : v)] }
+      const logs = [...(origin ? [record(roomKey(origin), `${tag} 퇴실`)] : []), ...(destination ? [record(destination, `${tag} 입실`)] : [])]
+      return { ...s, rooms: s.rooms.map(r => ({ ...r, tags: roomKey(r) === destination ? [...r.tags.filter(t => t !== tag), tag] : r.tags.filter(t => t !== tag) })), logs: [...logs, ...s.logs], visits: [...(destination ? [{ id: crypto.randomUUID(), tag, room:roomName(destination!),roomUid:destination!, entered: at, exited: null }] : []), ...s.visits.map(v => v.tag === tag && v.exited === null ? { ...v, exited: at } : v)] }
     })
     setChosen(null)
   }
@@ -98,7 +104,7 @@ export default function App() {
     if (tap.current?.room === id && t - tap.current.time < 350) { tap.current = null; changeTime(id, 60) }
     else { tap.current = { room: id, time: t }; setTimeout(() => { if (tap.current?.room === id && tap.current.time === t) { tap.current = null; setDetail(id) } }, 360) }
   }
-  const selected = store.rooms.find(r => r.id === detail)
+  const selected = store.rooms.find(r => roomKey(r) === detail)
   return <div className="app">
     <header><div><span className="kicker">ROOM LIVE · v0.4</span><h1>룸 라이브</h1><p>방 · 태그 · 시간 통합 관리</p></div><span className="status">● 로컬 테스트</span></header>
     {page === 'rooms' && <main>
@@ -107,7 +113,7 @@ export default function App() {
       {groups.filter(g=>shopTab==='all'||g.shopId===shopTab).map(g=>{
         const groupRooms=store.rooms.filter(r=>r.groupId===g.id)
         const used=new Set(g.layout.filter((id):id is string=>id!==null))
-        const positions=[...g.layout.filter(id=>id===null||groupRooms.some(r=>r.id===id)),...groupRooms.map(r=>r.id).filter(id=>!used.has(id))]
+        const positions=[...g.layout.filter(id=>id===null||groupRooms.some(r=>roomKey(r)===id)),...groupRooms.map(r=>roomKey(r)).filter(id=>!used.has(id))]
         const move=(from:string,to:number)=>{
           setStore(v=>({...v,groups:(v.groups??[]).map(x=>{
             if(x.id!==g.id)return x
@@ -122,21 +128,21 @@ export default function App() {
           <div className="section"><h3>{shops.find(sh=>sh.id===g.shopId)?.name} · {g.name}</h3><small>{groupRooms.length}개 방</small></div>
           {editing&&<div className="layout-actions"><button onClick={()=>setStore(v=>({...v,groups:(v.groups??[]).map(x=>x.id===g.id?{...x,layout:[...positions,null,null,null]}:x)}))}>+ 빈 줄</button><button onClick={()=>setStore(v=>({...v,groups:(v.groups??[]).map(x=>{if(x.id!==g.id)return x;const a=[...positions];while(a.length>=3&&a.slice(-3).every(id=>id===null))a.splice(-3);return {...x,layout:a}})}))}>끝 빈 줄 정리</button><button onClick={()=>{const id=prompt('새 방 이름 (전체에서 고유해야 함)')?.trim().toUpperCase();if(id)setStore(v=>v.rooms.some(r=>r.id===id)?v:{...v,rooms:[...v.rooms,{id,groupId:g.id,started:null,ends:null,tags:[]}]})}}>+ 방 추가</button></div>}
           <div className="room-grid three-cols">{positions.map((id,index)=>{
-            const r=groupRooms.find(x=>x.id===id)
+            const r=groupRooms.find(x=>roomKey(x)===id)
             if(!r)return <button key={'empty'+index} className={'empty-slot '+(editing?'editable':'')} disabled={!editing} onClick={()=>{if(moving)move(moving,index)}}>{editing?'＋ 빈칸':''}</button>
             const expired=Boolean(r.ends&&r.ends<=now)
-            return <div key={r.id} className={'room '+(r.ends?'running ':'')+(expired?'expired ':'')+(moving===r.id?'moving':'')}
-              onClick={()=>editing?(moving?move(moving,index):setMoving(r.id)):roomTap(r.id)}
-              onPointerDown={e=>{touchStart.current={x:e.clientX,y:e.clientY};held.current=false;if(!editing&&!chosen)hold.current=setTimeout(()=>{held.current=true;setDetail(null);setAdjust(r.id)},550)}}
+            return <div key={roomKey(r)} className={'room '+(r.ends?'running ':'')+(expired?'expired ':'')+(moving===roomKey(r)?'moving':'')}
+              onClick={()=>editing?(moving?move(moving,index):setMoving(roomKey(r))):roomTap(roomKey(r))}
+              onPointerDown={e=>{touchStart.current={x:e.clientX,y:e.clientY};held.current=false;if(!editing&&!chosen)hold.current=setTimeout(()=>{held.current=true;setDetail(null);setAdjust(roomKey(r))},550)}}
               onPointerMove={e=>{if(touchStart.current&&Math.hypot(e.clientX-touchStart.current.x,e.clientY-touchStart.current.y)>12&&hold.current)clearTimeout(hold.current)}}
               onPointerUp={()=>{if(hold.current)clearTimeout(hold.current)}} onPointerLeave={()=>{if(hold.current)clearTimeout(hold.current)}} onPointerCancel={()=>{if(hold.current)clearTimeout(hold.current)}}
-              onContextMenu={e=>{e.preventDefault();if(!editing&&!chosen){held.current=true;setAdjust(r.id)}}}>
+              onContextMenu={e=>{e.preventDefault();if(!editing&&!chosen){held.current=true;setAdjust(roomKey(r))}}}>
               <div className="room-head"><strong>{r.id}</strong><span>{expired?'시간 종료':r.ends?'이용 중':'대기'}</span></div>
               <div className="time">{r.ends?format(r.ends-now):'--:--:--'}</div>
               <div className="tags">{r.tags.length?r.tags.join(' · '):'태그 없음'}</div>
               {editing&&<div className="room-tools"><button onClick={e=>{e.stopPropagation();const name=prompt('방 이름',r.id)?.trim().toUpperCase();if(name&&name!==r.id)setStore(v=>v.rooms.some(x=>x.id===name)?v:{...v,rooms:v.rooms.map(x=>x.id===r.id?{...x,id:name}:x),groups:(v.groups??[]).map(x=>({...x,layout:x.layout.map(y=>y===r.id?name:y)})),logs:v.logs.map(x=>x.room===r.id?{...x,room:name}:x),visits:v.visits.map(x=>x.room===r.id?{...x,room:name}:x),sessions:v.sessions.map(x=>x.room===r.id?{...x,room:name}:x),payments:v.payments.map(x=>x.room===r.id?{...x,room:name}:x)})}}>이름</button><button onClick={e=>{e.stopPropagation();if(r.started||r.tags.length){alert('진행 중인 방은 이동할 수 없습니다.');return}const dest=prompt('이동할 묶음 이름',g.name);const target=groups.find(x=>x.name===dest&&x.id!==g.id);if(target)setStore(v=>({...v,rooms:v.rooms.map(x=>x.id===r.id?{...x,groupId:target.id}:x),groups:(v.groups??[]).map(x=>x.id===g.id?{...x,layout:x.layout.map(y=>y===r.id?null:y)}:x)}))}}>이동</button><button onClick={e=>{e.stopPropagation();if(r.started||r.tags.length){alert('이용 중인 방은 삭제할 수 없습니다.');return}if(confirm(r.id+' 삭제할까요?'))setStore(v=>({...v,rooms:v.rooms.filter(x=>x.id!==r.id),groups:(v.groups??[]).map(x=>({...x,layout:x.layout.map(y=>y===r.id?null:y)}))}))}}>삭제</button></div>}
-              {!editing&&chosen&&<button className="place" onClick={e=>{e.stopPropagation();place(chosen,r.id)}}>+ {chosen} 배치</button>}
-              {!editing&&r.started&&<button className={'room-pay '+(expired?'attention':'')} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();openCheckout(r.id)}}>{expired?'⚠ 결제 필요':'결제'}</button>}
+              {!editing&&chosen&&<button className="place" onClick={e=>{e.stopPropagation();place(chosen,roomKey(r))}}>+ {chosen} 배치</button>}
+              {!editing&&r.started&&<button className={'room-pay '+(expired?'attention':'')} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();openCheckout(roomKey(r))}}>{expired?'⚠ 결제 필요':'결제'}</button>}
             </div>
           })}</div>
         </section>
@@ -158,9 +164,9 @@ export default function App() {
       {(()=>{const items=(store.payments??[]).filter(p=>(payShopTab==='all'||p.shopId===payShopTab)&&(payGroup==='all'||p.groupId===payGroup)&&(!payDay||new Date(p.at).toLocaleDateString('sv-SE')===payDay));const paid=items.filter(p=>p.method!=='미수').reduce((n,p)=>n+p.amount,0),due=items.filter(p=>p.method==='미수').reduce((n,p)=>n+p.amount,0);return <><div className="payment-summary"><div><small>수금 합계</small><strong>{paid.toLocaleString('ko-KR')}원</strong></div><div><small>미수 합계</small><strong>{due.toLocaleString('ko-KR')}원</strong></div></div><h3>묶음별 결제</h3>{groups.filter(g=>payShopTab==='all'||g.shopId===payShopTab).filter(g=>payGroup==='all'||g.id===payGroup).map(g=>{const rows=items.filter(p=>p.groupId===g.id);return <button className="group-payment" key={g.id} onClick={()=>setPayGroup(g.id)}><b>{shops.find(x=>x.id===g.shopId)?.name} · {g.name}</b><span>수금 {rows.filter(p=>p.method!=='미수').reduce((n,p)=>n+p.amount,0).toLocaleString('ko-KR')}원</span><span>미수 {rows.filter(p=>p.method==='미수').reduce((n,p)=>n+p.amount,0).toLocaleString('ko-KR')}원</span></button>})}<div className="section"><h3>결제 내역 · 특이사항</h3><label className="memo-filter"><input type="checkbox" checked={memoOnly} onChange={e=>setMemoOnly(e.target.checked)}/> 비고만</label></div>{items.filter(p=>!memoOnly||Boolean(p.memo?.trim())).map(p=><div className="payment-entry" key={p.id}><strong>{p.room} · {p.method} · {p.amount.toLocaleString('ko-KR')}원</strong><small>{shops.find(x=>x.id===p.shopId)?.name} / {groups.find(g=>g.id===p.groupId)?.name} · {date(p.at)}</small>{p.manager&&<small>담당: {p.manager}</small>}{p.wari&&<small>와리: {p.wari}</small>}{p.wt&&<small>WT: {p.wt}</small>}{p.memo&&<p>비고: {p.memo}</p>}</div>)}{items.length===0&&<p className="hint">해당 기간의 결제 기록이 없습니다.</p>}</>})()}</main>}
     {page==='settings'&&<main><h2>설정</h2><h3>결제 입력 항목</h3><label className="setting-row"><span>와리 표시</span><input type="checkbox" checked={store.showWari!==false} onChange={e=>setStore(v=>({...v,showWari:e.target.checked}))}/></label><label className="setting-row"><span>WT 표시</span><input type="checkbox" checked={store.showWt!==false} onChange={e=>setStore(v=>({...v,showWt:e.target.checked}))}/></label><h3>가게 관리</h3>{shops.map(sh=><div className="manage-row" key={sh.id}><b>{sh.name}</b><button onClick={()=>{const name=prompt('가게 이름',sh.name)?.trim();if(name)setStore(v=>({...v,shops:(v.shops??[]).map(x=>x.id===sh.id?{...x,name}:x)}))}}>이름 변경</button></div>)}<button className="manage-add" onClick={()=>{const name=prompt('추가할 가게 이름')?.trim();if(name)setStore(v=>({...v,shops:[...(v.shops??[]),{id:crypto.randomUUID(),name}]}))}}>+ 가게 추가</button><h3>방 묶음 관리</h3>{groups.map(g=><div className="manage-row" key={g.id}><div><b>{g.name}</b><small>{shops.find(sh=>sh.id===g.shopId)?.name}</small></div><button onClick={()=>{const name=prompt('묶음 이름',g.name)?.trim();if(name)setStore(v=>({...v,groups:(v.groups??[]).map(x=>x.id===g.id?{...x,name}:x)}))}}>이름</button><button onClick={()=>{if(store.rooms.some(r=>r.groupId===g.id)){alert('방이 있는 묶음은 삭제할 수 없습니다.');return}if(confirm(g.name+' 삭제할까요?'))setStore(v=>({...v,groups:(v.groups??[]).filter(x=>x.id!==g.id)}))}}>삭제</button></div>)}<button className="manage-add" onClick={()=>{const name=prompt('새 묶음 이름')?.trim();if(!name)return;const sh=prompt('소속 가게 이름',shops[0]?.name);const target=shops.find(x=>x.name===sh);if(!target){alert('등록된 가게 이름을 입력해 주세요.');return}setStore(v=>({...v,groups:[...(v.groups??[]),{id:crypto.randomUUID(),shopId:target.id,name,layout:[]}]}))}}>+ 묶음 추가</button><p className="hint">이 버전은 현재 브라우저에만 저장됩니다. 두 가게 기기 간 실시간 공유는 아직 지원하지 않습니다.</p><button className="danger" onClick={()=>{if(confirm('모든 테스트 기록을 삭제할까요?'))setStore(seed)}}>테스트 기록 초기화</button></main>}
     <nav className="nav-four"><button className={page === 'rooms' ? 'on' : ''} onClick={() => setPage('rooms')}>▦<span>방 현황</span></button><button className={page === 'logs' ? 'on' : ''} onClick={() => setPage('logs')}>◷<span>진행 기록</span></button><button className={page === 'payments' ? 'on' : ''} onClick={() => setPage('payments')}>₩<span>결제</span></button><button className={page === 'settings' ? 'on' : ''} onClick={() => setPage('settings')}>⚙<span>설정</span></button></nav>
-    {selected && <div className="overlay" onClick={() => setDetail(null)}><section className="modal" onClick={e => e.stopPropagation()}><div className="section"><h2>{selected.id} 상세</h2><button onClick={() => setDetail(null)}>닫기</button></div><div className="large-time">{selected.ends ? format(selected.ends - now) : '대기 중'}</div><p className="hint">{selected.started ? `시작: ${date(selected.started)}` : '시작 전'}</p><div className="buttons"><button onClick={() => selected.ends ? changeTime(selected.id, 60) : start(selected.id)}>{selected.ends ? '+1시간' : '60분 시작'}</button><button onClick={() => { setAdjust(selected.id); setDetail(null) }}>시간 조절</button>{selected.started && <button className="checkout-open" onClick={() => { openCheckout(selected.id) }}>마무리 (결제)</button>}</div><h3>배치된 태그</h3>{selected.tags.map(tag => <div className="tag-row" key={tag}><span>{tag}<small>{(() => { const v = store.visits.find(x => x.tag === tag && x.exited === null); return v ? ` · 입실 ${date(v.entered)} · ${Math.floor((now - v.entered)/60000)}분 경과` : '' })()}</small></span><button onClick={() => place(tag, null)}>퇴실</button></div>)}{!selected.tags.length && <p className="hint">태그 없음</p>}</section></div>}
-    {checkout && <div className="overlay" onClick={() => setCheckout(null)}><section className="modal" onClick={e => e.stopPropagation()}><div className="section"><h2>{checkout} · 마무리(결제)</h2><button onClick={() => setCheckout(null)}>취소</button></div><p className="hint">결제 수단을 선택하고 금액을 입력한 후 완료하세요. 미수는 실제 수금이 아닌 미수 기록으로 저장됩니다.</p><div className="pay-methods">{(['카드','현금','이체','미수'] as const).map(m => <button key={m} className={payMethod === m ? 'active' : ''} onClick={() => setPayMethod(m)}>{m}</button>)}</div><label className="amount-label">{payMethod === '미수' ? '미수 금액' : '결제금액'} (원)<input inputMode="numeric" type="text" pattern="[0-9]*" placeholder="예: 150000" value={payAmount} onChange={e => setPayAmount(e.target.value.replace(/[^0-9]/g,''))}/></label><label className="amount-label checkout-extra">담당<input type="text" maxLength={80} placeholder="담당자 이름 입력" value={payManager} onChange={e => setPayManager(e.target.value)}/></label>{store.showWari!==false&&<label className="amount-label checkout-extra">와리<input type="text" value={payWari} onChange={e=>setPayWari(e.target.value)} placeholder="와리 입력"/></label>}{store.showWt!==false&&<label className="amount-label checkout-extra">WT<input type="text" value={payWt} onChange={e=>setPayWt(e.target.value)} placeholder="WT 입력"/></label>}<label className="amount-label checkout-extra">비고 (메모)<textarea rows={3} maxLength={1000} placeholder="결제 관련 메모 입력" value={payMemo} onChange={e => setPayMemo(e.target.value)}/></label><button className="pay-submit" disabled={!payMethod || !payAmount || Number(payAmount) <= 0} onClick={saveCheckout}>완료 · 기록 저장 및 방 마무리</button></section></div>}
-    {adjust && <div className="overlay" onClick={() => setAdjust(null)}><section className="modal" onClick={e => e.stopPropagation()}><div className="section"><h2>{adjust} 시간 조절</h2><button onClick={() => setAdjust(null)}>닫기</button></div><p className="hint">시간 추가</p><div className="adjust">{[5, 10, 30, 60].map(m => <button className="plus" key={m} onClick={() => changeTime(adjust, m)}>+{m === 60 ? '1시간' : m + '분'}</button>)}</div><p className="hint">시간 차감</p><div className="adjust">{[5, 10, 30, 60].map(m => <button className="minus" key={m} onClick={() => changeTime(adjust, -m)}>-{m === 60 ? '1시간' : m + '분'}</button>)}</div></section></div>}
+    {selected && <div className="overlay" onClick={() => setDetail(null)}><section className="modal" onClick={e => e.stopPropagation()}><div className="section"><h2>{selected.id} 상세</h2><button onClick={() => setDetail(null)}>닫기</button></div><div className="large-time">{selected.ends ? format(selected.ends - now) : '대기 중'}</div><p className="hint">{selected.started ? `시작: ${date(selected.started)}` : '시작 전'}</p><div className="buttons"><button onClick={() => selected.ends ? changeTime(roomKey(selected), 60) : start(roomKey(selected))}>{selected.ends ? '+1시간' : '60분 시작'}</button><button onClick={() => { setAdjust(roomKey(selected)); setDetail(null) }}>시간 조절</button>{selected.started && <button className="checkout-open" onClick={() => { openCheckout(roomKey(selected)) }}>마무리 (결제)</button>}</div><h3>배치된 태그</h3>{selected.tags.map(tag => <div className="tag-row" key={tag}><span>{tag}<small>{(() => { const v = store.visits.find(x => x.tag === tag && x.exited === null); return v ? ` · 입실 ${date(v.entered)} · ${Math.floor((now - v.entered)/60000)}분 경과` : '' })()}</small></span><button onClick={() => place(tag, null)}>퇴실</button></div>)}{!selected.tags.length && <p className="hint">태그 없음</p>}</section></div>}
+    {checkout && <div className="overlay" onClick={() => setCheckout(null)}><section className="modal" onClick={e => e.stopPropagation()}><div className="section"><h2>{roomName(checkout)} · 마무리(결제)</h2><button onClick={() => setCheckout(null)}>취소</button></div><p className="hint">결제 수단을 선택하고 금액을 입력한 후 완료하세요. 미수는 실제 수금이 아닌 미수 기록으로 저장됩니다.</p><div className="pay-methods">{(['카드','현금','이체','미수'] as const).map(m => <button key={m} className={payMethod === m ? 'active' : ''} onClick={() => setPayMethod(m)}>{m}</button>)}</div><label className="amount-label">{payMethod === '미수' ? '미수 금액' : '결제금액'} (원)<input inputMode="numeric" type="text" pattern="[0-9]*" placeholder="예: 150000" value={payAmount} onChange={e => setPayAmount(e.target.value.replace(/[^0-9]/g,''))}/></label><label className="amount-label checkout-extra">담당<input type="text" maxLength={80} placeholder="담당자 이름 입력" value={payManager} onChange={e => setPayManager(e.target.value)}/></label>{store.showWari!==false&&<label className="amount-label checkout-extra">와리<input type="text" value={payWari} onChange={e=>setPayWari(e.target.value)} placeholder="와리 입력"/></label>}{store.showWt!==false&&<label className="amount-label checkout-extra">WT<input type="text" value={payWt} onChange={e=>setPayWt(e.target.value)} placeholder="WT 입력"/></label>}<label className="amount-label checkout-extra">비고 (메모)<textarea rows={3} maxLength={1000} placeholder="결제 관련 메모 입력" value={payMemo} onChange={e => setPayMemo(e.target.value)}/></label><button className="pay-submit" disabled={!payMethod || !payAmount || Number(payAmount) <= 0} onClick={saveCheckout}>완료 · 기록 저장 및 방 마무리</button></section></div>}
+    {adjust && <div className="overlay" onClick={() => setAdjust(null)}><section className="modal" onClick={e => e.stopPropagation()}><div className="section"><h2>{roomName(adjust)} 시간 조절</h2><button onClick={() => setAdjust(null)}>닫기</button></div><p className="hint">시간 추가</p><div className="adjust">{[5, 10, 30, 60].map(m => <button className="plus" key={m} onClick={() => changeTime(adjust, m)}>+{m === 60 ? '1시간' : m + '분'}</button>)}</div><p className="hint">시간 차감</p><div className="adjust">{[5, 10, 30, 60].map(m => <button className="minus" key={m} onClick={() => changeTime(adjust, -m)}>-{m === 60 ? '1시간' : m + '분'}</button>)}</div></section></div>}
     {viewSession && <div className="overlay" onClick={() => setViewSession(null)}><section className="modal" onClick={e => e.stopPropagation()}><div className="section"><h2>이용 회차 상세</h2><button onClick={() => setViewSession(null)}>닫기</button></div>{(() => { const x = store.sessions.find(s => s.id === viewSession); if (!x) return null; const next = store.sessions.filter(s => s.room === x.room && s.started > x.started).sort((a,b) => a.started-b.started)[0]; const end = x.ended ?? next?.started ?? now; return <><p>{x.room} · 시작 {date(x.started)}</p><p>종료 {x.ended ? date(x.ended) : '진행 중'} · 경과 {Math.floor((end-x.started)/60000)}분</p><h3>태그 입퇴실</h3>{store.visits.filter(v => v.room === x.room && v.entered >= x.started && v.entered <= end).map(v => <p className="visit" key={v.id}>{v.tag} · 입실 {date(v.entered)} · 퇴실 {v.exited ? date(v.exited) : '이용 중'}</p>)}<h3>조작 기록</h3>{store.logs.filter(l => l.room === x.room && l.at >= x.started && l.at <= end).map(l => <p className="visit" key={l.id}>{date(l.at)} · {l.action}</p>)}</> })()}</section></div>}
   </div>
 }
