@@ -47,3 +47,24 @@ test('legacy room with no session still checks out',()=>{
   assert.ok(result)
   assert.equal(result.payments[0].sessionId,null)
 })
+
+test('checkout logs do not reveal payment amount or method',()=>{
+  const result=applyCheckout(store(),request)
+  assert.ok(result)
+  for(const log of result.logs)assert.doesNotMatch(log.action,/150,000|150000|카드|현금|이체|미수|결제/)
+})
+test('invalid identifiers and timestamps are rejected',()=>{
+  for(const patch of [{paymentId:''},{roomUid:''},{at:-1},{at:1.5}]){
+    assert.equal(applyCheckout(store(),{...request,...patch}),undefined)
+  }
+})
+test('overlong ledger input is rejected',()=>{
+  for(const patch of [{manager:'a'.repeat(81)},{memo:'a'.repeat(1001)},{wari:'a'.repeat(201)},{wt:'a'.repeat(201)}]){
+    assert.equal(applyCheckout(store(),{...request,...patch}),undefined)
+  }
+})
+test('two simultaneous open sessions are rejected',()=>{
+  const state=store()
+  state.sessions.push({...state.sessions[0],id:'session-2'})
+  assert.equal(applyCheckout(state,request),undefined)
+})
