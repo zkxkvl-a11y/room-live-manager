@@ -33,6 +33,7 @@ export default function App() {
   const [v2Active,setV2Active]=useState(false)
   const v2OperationsRef=useRef<Store|null>(null)
   const v2PaymentsRef=useRef<Payment[]>([])
+  const v2AuditLogsRef=useRef<Log[]>([])
   function setStore(update:Store|((previous:Store)=>Store)) {
     if(!canOperate){alert('현황 옵저버는 조회만 가능합니다.');return}
     if(!readyRef.current){alert('서버 데이터 연결이 완료된 후 수정할 수 있습니다.');return}
@@ -181,11 +182,13 @@ export default function App() {
       // Preserve local backups during migration; never erase them on a feature-flag change.
       v2OperationsRef.current=null
       v2PaymentsRef.current=[]
+      v2AuditLogsRef.current=[]
       let financeLoaded=!isAdmin
       const refresh=()=>{
         if(!v2OperationsRef.current||!financeLoaded)return
         const data=mergeSplit(v2OperationsRef.current,isAdmin?{payments:v2PaymentsRef.current}:null)
         if(!data)return
+        if(isAdmin)data.logs=[...v2AuditLogsRef.current,...data.logs]
         readyRef.current=true
         setStoreState(normalizeRemote(data))
         setRemoteState('ready')
@@ -199,6 +202,7 @@ export default function App() {
       const unsubFinance=isAdmin?onValue(ref(database,FINANCE_PATH),snapshot=>{
         const value=snapshot.val()
         v2PaymentsRef.current=(Array.isArray(value?.payments)?value.payments:Object.values(value?.payments??{})) as Payment[]
+        v2AuditLogsRef.current=(Array.isArray(value?.auditLogs)?value.auditLogs:Object.values(value?.auditLogs??{})) as Log[]
         financeLoaded=true
         refresh()
       },error=>{readyRef.current=false;setRemoteState('error');setRemoteError('장부 조회 실패: '+error.message)}):()=>{}
