@@ -28,7 +28,43 @@
       "operations": {
         ".read": "auth != null && (auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2' || root.child('roomLiveAccess').child(auth.uid).val() === 'staff' || root.child('roomLiveAccess').child(auth.uid).val() === 'worker')",
         ".write": "auth != null && (auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2' || root.child('roomLiveAccess').child(auth.uid).val() === 'staff' || root.child('roomLiveAccess').child(auth.uid).val() === 'worker') && newData.exists() && newData.hasChild('rooms')",
-        ".validate": "newData.hasChild('rooms') && !newData.hasChild('payments') && !newData.hasChild('finance') && !newData.hasChild('checkoutRequests')"
+        ".validate": "newData.hasChild('rooms') && !newData.hasChild('payments') && !newData.hasChild('finance') && !newData.hasChild('checkoutRequests') && (!newData.hasChild('rooms') || newData.child('rooms').exists()) && (!newData.hasChild('tags') || newData.child('tags').exists()) && (!newData.hasChild('attendance') || newData.child('attendance').exists()) && (!newData.hasChild('logs') || newData.child('logs').exists()) && (!newData.hasChild('visits') || newData.child('visits').exists()) && (!newData.hasChild('sessions') || newData.child('sessions').exists()) && (!newData.hasChild('layout') || newData.child('layout').exists()) && (!newData.hasChild('shops') || newData.child('shops').exists()) && (!newData.hasChild('groups') || newData.child('groups').exists()) && (!newData.hasChild('showWari') || newData.child('showWari').exists()) && (!newData.hasChild('showWt') || newData.child('showWt').exists())",
+        "$other": {
+          ".validate": false
+        },
+        "rooms": {
+          ".validate": true
+        },
+        "tags": {
+          ".validate": true
+        },
+        "attendance": {
+          ".validate": true
+        },
+        "logs": {
+          ".validate": true
+        },
+        "visits": {
+          ".validate": true
+        },
+        "sessions": {
+          ".validate": true
+        },
+        "layout": {
+          ".validate": true
+        },
+        "shops": {
+          ".validate": true
+        },
+        "groups": {
+          ".validate": true
+        },
+        "showWari": {
+          ".validate": true
+        },
+        "showWt": {
+          ".validate": true
+        }
       },
       "finance": {
         ".read": "auth != null && auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2'",
@@ -37,7 +73,7 @@
       "checkoutRequests": {
         "$requestId": {
           ".read": "auth != null && (auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2' || data.child('uid').val() === auth.uid)",
-          ".write": "auth != null && !data.exists() && newData.exists() && (auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2' || root.child('roomLiveAccess').child(auth.uid).val() === 'worker' || root.child('roomLiveAccess').child(auth.uid).val() === 'staff')",
+          ".write": "false",
           ".validate": "newData.hasChildren(['id','uid','roomUid','amount','method','at']) && newData.child('id').val() === $requestId && newData.child('uid').val() === auth.uid && newData.child('roomUid').isString() && newData.child('roomUid').val().length > 0 && newData.child('roomUid').val().length <= 128 && newData.child('amount').isNumber() && newData.child('amount').val() > 0 && newData.child('amount').val() <= 1000000000 && newData.child('method').isString() && (newData.child('method').val() === '현금' || newData.child('method').val() === '카드' || newData.child('method').val() === '이체' || newData.child('method').val() === '미수') && newData.child('at').isNumber() && newData.child('at').val() <= now + 300000 && newData.child('at').val() >= now - 86400000 && !newData.hasChild('status') && newData.child('manager').isString() && newData.child('manager').val().length <= 80 && newData.child('memo').isString() && newData.child('memo').val().length <= 1000 && newData.child('wari').isString() && newData.child('wari').val().length <= 200 && newData.child('wt').isString() && newData.child('wt').val().length <= 200",
           "$other": {
             ".validate": false
