@@ -1,6 +1,6 @@
 // Run with Firebase Admin ADC during a maintenance window. No credentials are stored here.
-const {initializeApp,getApps}=require('firebase-admin/app')
-const {getDatabase}=require('firebase-admin/database')
+const {initializeApp,getApps}=require('../functions/node_modules/firebase-admin/app')
+const {getDatabase}=require('../functions/node_modules/firebase-admin/database')
 const {createHash}=require('node:crypto')
 if(!getApps().length)initializeApp({databaseURL:'https://room-live-manager-default-rtdb.asia-southeast1.firebasedatabase.app'})
 const db=getDatabase()
