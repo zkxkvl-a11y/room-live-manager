@@ -38,3 +38,15 @@ test('V2 cutover remains gated; static assertions do not substitute for emulator
   assert.match(gate, /전환 금지/)
   assert.match(gate, /에뮬레이터/)
 })
+
+test('orphaned checkout request creation is disabled in Spark rules',()=>{
+  assert.equal(rules.roomLiveV2.checkoutRequests.$requestId['.write'],'false')
+})
+test('operations root rejects unknown fields by default',()=>{
+  const operations=rules.roomLiveV2.operations
+  assert.equal(operations.$other['.validate'],false)
+  const approved=['rooms','tags','attendance','logs','visits','sessions','layout','shops','groups','showWari','showWt']
+  for(const field of approved)assert.equal(operations[field]['.validate'],true)
+  assert.equal(operations.payments,undefined)
+  assert.equal(operations.finance,undefined)
+})
