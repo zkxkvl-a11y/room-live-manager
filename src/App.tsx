@@ -342,6 +342,30 @@ export default function App() {
     const roomUid=checkout, method=payMethod, amount=Number(payAmount), at=Date.now()
     const manager=payManager.trim(), memo=payMemo.trim(), wari=payWari.trim(), wt=payWt.trim()
     const paymentId=crypto.randomUUID()
+    if(v2Active){
+      const operation=async()=>{
+        try{
+          if(!account||auth.currentUser?.uid!==account.uid)throw Error('로그인 상태가 변경되었습니다.')
+          const requestRef=ref(database,CHECKOUT_PATH+'/'+paymentId)
+          await set(requestRef,{id:paymentId,uid:account.uid,roomUid,amount,method,at,manager,memo,wari,wt})
+          const {get}=await import('firebase/database')
+          let status='pending'
+          for(let attempt=0;attempt<30;attempt++){
+            await new Promise(resolve=>setTimeout(resolve,500))
+            const snapshot=await get(requestRef)
+            status=snapshot.child('status').val()??'pending'
+            if(status==='completed'||status==='rejected')break
+          }
+          if(status==='completed'){
+            setCheckout(null);setDetail(null);setPayMethod(null);setPayAmount('');setPayManager('');setPayMemo('')
+          }else if(status==='rejected')alert('서버에서 결제를 거절했습니다. 방 상태와 권한을 확인하세요.')
+          else alert('결제 요청을 제출했습니다. 처리 결과를 확인한 뒤 다시 시도하세요.')
+        }catch(error){setRemoteError('결제 요청 실패: '+String(error));alert('결제 요청 실패. 저장 여부를 확인한 뒤 다시 시도하세요.')}
+        finally{checkoutPendingRef.current=false;setCheckoutSaving(false)}
+      }
+      transactionQueue.current=transactionQueue.current.then(operation,operation)
+      return
+    }
     const operation=async()=>{
       try{
         const result=await runTransaction(roomLiveRef,current=>{
