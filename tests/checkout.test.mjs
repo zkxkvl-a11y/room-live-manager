@@ -68,3 +68,18 @@ test('two simultaneous open sessions are rejected',()=>{
   state.sessions.push({...state.sessions[0],id:'session-2'})
   assert.equal(applyCheckout(state,request),undefined)
 })
+
+test('checkout refuses timestamps before the room start',()=>{
+  assert.equal(applyCheckout(store(),{...request,at:999}),undefined)
+})
+test('checkout refuses an active visit that starts after checkout time',()=>{
+  const state=store()
+  state.visits[0].entered=3000
+  assert.equal(applyCheckout(state,request),undefined)
+})
+test('checkout rejects oversized or whitespace-only identifiers',()=>{
+  for(const patch of [
+    {paymentId:' '},{roomUid:' '},
+    {paymentId:'p'.repeat(129)},{roomUid:'r'.repeat(129)}
+  ])assert.equal(applyCheckout(store(),{...request,...patch}),undefined)
+})
