@@ -17,15 +17,16 @@ export function applyCheckout(previous:Store,request:CheckoutRequest):Store|unde
   const {paymentId,roomUid,method,amount,at,manager,memo,wari,wt}=request
   if(!Number.isSafeInteger(amount)||amount<=0||amount>1000000000)return
   if(!['현금','카드','이체','미수'].includes(method))return
-  if(!paymentId||!roomUid||!Number.isSafeInteger(at)||at<=0)return
+  if(!paymentId.trim()||paymentId.length>128||!roomUid.trim()||roomUid.length>128||!Number.isSafeInteger(at)||at<=0)return
   if(manager.length>80||memo.length>1000||wari.length>200||wt.length>200)return
   if(previous.payments.some(p=>p.id===paymentId))return
   const sameRoom=(x:{room:string;roomUid?:string})=>
     x.roomUid===roomUid||(!x.roomUid&&previous.rooms.some(r=>(r.uid??r.id)===roomUid&&r.id===x.room))
   const active=previous.rooms.find(r=>(r.uid??r.id)===roomUid)
-  if(!active||active.started===null)return
+  if(!active||active.started===null||!Number.isSafeInteger(active.started)||at<active.started)return
   const openSessions=previous.sessions.filter(s=>sameRoom(s)&&s.ended===null)
   if(openSessions.length>1||(openSessions.length===1&&openSessions[0].started!==active.started))return
+  if(previous.visits.some(v=>sameRoom(v)&&v.exited===null&&v.entered>at))return
   const session=openSessions[0]
   const payment:Payment={
     id:paymentId,room:active.id,roomUid,at,startedAt:active.started,amount,method,
