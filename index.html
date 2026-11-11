@@ -7,7 +7,20 @@
     <title>Vite + React + TS</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><div id="startup-status" style="min-height:100vh;padding:24px;font:16px system-ui;background:#fff;color:#111"><h1>ROOM LIVE</h1><p>앱을 불러오는 중입니다...</p><p style="font-size:13px">화면이 계속 유지되면 자바스크립트 모듈 또는 StackBlitz 미리보기 연결을 확인하세요.</p></div></div>
+    <script>
+      window.addEventListener('error', function(e) {
+        var root=document.getElementById('root');
+        if(root && document.getElementById('startup-status')) {
+          root.innerHTML='<main style="padding:24px;font:16px system-ui;color:#111"><h1>ROOM LIVE 로딩 오류</h1><pre style="white-space:pre-wrap;overflow-wrap:anywhere"></pre></main>';
+          root.querySelector('pre').textContent=e.message||'모듈 로딩 오류';
+        }
+      });
+      window.addEventListener('unhandledrejection',function(e) {
+        var status=document.getElementById('startup-status');
+        if(status)status.textContent='ROOM LIVE 실행 오류: '+String(e.reason);
+      });
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
