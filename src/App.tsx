@@ -424,13 +424,43 @@ export default function App() {
   function start(id: string) { const at = Date.now(); const room=store.rooms.find(r=>roomKey(r)===id);if(!room)return; setStore(s => ({ ...s, rooms: s.rooms.map(r => roomKey(r) === id ? { ...r, started: at, ends: at + 3600000 } : r), sessions: [{ id: crypto.randomUUID(), room: room.id, roomUid:id, started: at, ended: null }, ...s.sessions], logs: [record(id, '방 시작 · 60분'), ...s.logs] })) }
   function saveCheckout() {
     if (!checkout || !payMethod) { alert('결제 수단을 선택해 주세요.'); return }
-    if (!/^\d+$/.test(payAmount.trim()) || !Number.isSafeInteger(Number(payAmount)) || Number(payAmount) <= 0) { alert('결제금액을 1원 이상의 숫자로 입력해 주세요.'); return }
-    const r = store.rooms.find(x => roomKey(x) === checkout)
-    if (!r || !r.started) { alert('진행 중인 방이 아닙니다.'); return }
-    const at = Date.now(), amount = Number(payAmount)
-    const payment: Payment = { id: crypto.randomUUID(), room: r.id, roomUid:checkout, at, startedAt:r.started, amount, method: payMethod, sessionId: store.sessions.filter(x => sameRoom(x,checkout) && x.ended === null).sort((a,b) => b.started-a.started)[0]?.id ?? null, manager: payManager.trim(), memo: payMemo.trim(), wari: payWari.trim(), wt: payWt.trim(), groupId: r.groupId, shopId: groups.find(g => g.id === r.groupId)?.shopId }
-    setStore(v => ({ ...v, payments: [payment, ...(v.payments ?? [])], sessions: v.sessions.map(x => sameRoom(x,checkout) && x.ended === null ? { ...x, ended: at } : x), visits: v.visits.map(x => sameRoom(x,checkout) && x.exited === null ? { ...x, exited: at } : x), rooms: v.rooms.map(x => roomKey(x) === checkout ? { ...x, started: null, ends: null, tags: [] } : x), logs: [record(checkout, `마무리(결제) · ${payMethod} · ${amount.toLocaleString('ko-KR')}원`), ...r.tags.map(tag => record(checkout, `${helperName(tag)} 퇴실 · 결제 완료`)), ...v.logs] }))
-    setCheckout(null); setDetail(null); setPayMethod(null); setPayAmount(''); setPayManager(''); setPayMemo('')
+    if (!/^\\d+$/.test(payAmount.trim()) || !Number.isSafeInteger(Number(payAmount)) || Number(payAmount) <= 0) { alert('결제금액을 1원 이상의 숫자로 입력해 주세요.'); return }
+    if(!canOperate||!readyRef.current){alert('서버 연결 후 결제할 수 있습니다.');return}
+    const roomUid=checkout, method=payMethod, amount=Number(payAmount), at=Date.now()
+    const manager=payManager.trim(), memo=payMemo.trim(), wari=payWari.trim(), wt=payWt.trim()
+    const paymentId=crypto.randomUUID()
+    const operation=async()=>{
+      try{
+        const result=await runTransaction(roomLiveRef,current=>{
+          if(current===null)return
+          const previous=normalizeRemote(current as Store)
+          const active=previous.rooms.find(x=>roomKey(x)===roomUid)
+          // Validate against the latest server state on every transaction retry.
+          if(!active||!active.started||previous.payments.some(p=>p.id===paymentId))return
+          const session=previous.sessions.filter(x=>sameRoom(x,roomUid)&&x.ended===null).sort((x,y)=>y.started-x.started)[0]
+          if(session&&session.started!==active.started)return
+          const payment:Payment={
+            id:paymentId,room:active.id,roomUid,at,startedAt:active.started,amount,method,
+            sessionId:session?.id??null,manager,memo,wari,wt,groupId:active.groupId,
+            shopId:previous.groups?.find(g=>g.id===active.groupId)?.shopId
+          }
+          const logs:Log[]=[
+            {id:paymentId+'-checkout',at,room:active.id,roomUid,action:'마무리(결제) · '+method+' · '+amount.toLocaleString('ko-KR')+'원'},
+            ...active.tags.map((tag,index)=>({id:paymentId+'-exit-'+index,at,room:active.id,roomUid,action:tag+' 퇴실 · 결제 완료'}))
+          ]
+          return {...previous,
+            payments:[payment,...previous.payments],
+            sessions:previous.sessions.map(x=>sameRoom(x,roomUid)&&x.ended===null?{...x,ended:at}:x),
+            visits:previous.visits.map(x=>sameRoom(x,roomUid)&&x.exited===null?{...x,exited:at}:x),
+            rooms:previous.rooms.map(x=>roomKey(x)===roomUid?{...x,started:null,ends:null,tags:[]}:x),
+            logs:[...logs,...previous.logs]
+          }
+        },{applyLocally:false})
+        if(!result.committed){alert('이미 마감됐거나 다른 사용자가 방 상태를 변경했습니다. 최신 상태를 확인해 주세요.');return}
+        setCheckout(null);setDetail(null);setPayMethod(null);setPayAmount('');setPayManager('');setPayMemo('')
+      }catch(error){setRemoteError('결제 저장 실패: '+String(error));alert('결제 저장 실패. 방을 마감하지 않았습니다.')}
+    }
+    transactionQueue.current=transactionQueue.current.then(operation,operation)
   }
   function placeMany(ids:string[],destination:string|null){
     const valid=[...new Set(ids)].filter(id=>attendance.some(h=>h.id===id&&h.working))
