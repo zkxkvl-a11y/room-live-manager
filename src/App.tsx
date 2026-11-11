@@ -52,6 +52,24 @@ export default function App() {
     }
     transactionQueue.current=transactionQueue.current.then(operation,operation)
   }
+  function setLedger(update:(previous:Store)=>Store){
+    if(!isAdmin||!readyRef.current)return
+    if(!v2Active){setStore(update);return}
+    const requestedBy=auth.currentUser?.uid
+    const operation=async()=>{
+      if(!requestedBy||auth.currentUser?.uid!==requestedBy)return
+      try{
+        const result=await runTransaction(ref(database,FINANCE_PATH),current=>{
+          if(!current)return
+          const previous=normalizeRemote({...v2OperationsRef.current,payments:current.payments??[]} as Store)
+          const next=update(previous)
+          return {...current,payments:next.payments}
+        },{applyLocally:false})
+        if(!result.committed)throw Error('장부 수정이 저장되지 않았습니다.')
+      }catch(error){setRemoteError('장부 수정 실패: '+String(error))}
+    }
+    transactionQueue.current=transactionQueue.current.then(operation,operation)
+  }
   const [now, setNow] = useState(Date.now())
   const [page, setPage] = useState<'rooms' | 'attendance' | 'logs' | 'payments' | 'settings'>('rooms')
   const [detail, setDetail] = useState<string | null>(null)
@@ -249,7 +267,7 @@ export default function App() {
     if(!note?.trim()){alert('정정 사유를 입력해 주세요.');return}
     if(!confirm('기존 결제 정보를 정정하고 변경 기록을 남길까요?'))return
     const at=Date.now(),logId=crypto.randomUUID()
-    setStore(previous=>{
+    setLedger(previous=>{
       const current=previous.payments.find(p=>p.id===id)
       if(!current)return previous
       const next={...current,amount:Number(amountText),method:method as Payment['method'],correctedAt:at,correctionNote:note.trim()}
@@ -266,7 +284,7 @@ export default function App() {
     if(!original){setCollectId(null);return}
     if(!confirm('미수 '+original.amount.toLocaleString('ko-KR')+'원을 '+collectMethod+'으로 전액 회수할까요?'))return
     const at=Date.now(),method=collectMethod,note=collectNote.trim(),id=collectId
-    setStore(previous=>{
+    setLedger(previous=>{
       const current=previous.payments.find(p=>p.id===id&&p.method==='미수')
       if(!current)return previous
       return {...previous,payments:previous.payments.map(p=>p.id===id?{...p,method,correctedAt:at,correctionNote:'미수 회수: '+(note||'전액 회수')}:p),logs:[{id:crypto.randomUUID(),at,room:current.room,roomUid:current.roomUid,action:'미수 전액 회수 · '+method+' · '+current.amount+'원'+(note?' · '+note:'')},...previous.logs]}
