@@ -158,7 +158,7 @@ export default function App() {
     const financeRef=ref(database,'roomLiveV2/finance')
     const finance={payments:store.payments,sessions:store.sessions}
     void runTransaction(financeRef,current=>{
-      if(current===null)return
+      if(current===null)return finance
       // Never overwrite a newer snapshot with an older event arriving out of order.
       const currentPayments=Array.isArray(current.payments)?current.payments:Object.values(current.payments??{})
       const existingIds=new Set((currentPayments as Payment[]).map(p=>p.id))
