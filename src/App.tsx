@@ -115,6 +115,7 @@ export default function App() {
       setRemoteState('loading')
     })
   },[])
+  useEffect(()=>{if(!isAdmin&&page==='settings')setPage('rooms')},[isAdmin,page])
   useEffect(()=>{
     if(!account||role==='pending')return
     setRemoteError('')
@@ -254,7 +255,6 @@ export default function App() {
   if(authLoading)return <div className="cloud-gate"><h1>ROOM LIVE</h1><p>로그인 상태 확인 중...</p></div>
   if(!account)return <div className="cloud-gate"><h1>ROOM LIVE</h1><p>Firebase 관리자 로그인</p><form onSubmit={login}><label>이메일<input type="email" autoComplete="username" required value={loginEmail} onChange={e=>setLoginEmail(e.target.value)}/></label><label>비밀번호<input type="password" autoComplete="current-password" required value={loginPassword} onChange={e=>setLoginPassword(e.target.value)}/></label><button disabled={loginBusy} type="submit">{loginBusy?'로그인 중...':'로그인'}</button></form>{remoteError&&<p role="alert" className="cloud-error">{remoteError}</p>}</div>
   if(role==='pending')return <div className="cloud-gate"><h1>ROOM LIVE</h1><p>승인 대기 중인 계정입니다. 관리자에게 Firebase 사용자 UID를 전달하고 승인을 요청해 주세요.</p><p className="hint">내 UID: {account.uid}</p><button onClick={()=>navigator.clipboard?.writeText(account.uid)}>UID 복사</button><button onClick={()=>signOut(auth)}>로그아웃</button></div>
-  if(!isAdmin&&page==='settings')setPage('rooms')
   if(remoteState!=='ready')return <div className="cloud-gate"><h1>ROOM LIVE</h1><p>{remoteState==='empty'?'서버 데이터가 아직 없습니다.':remoteState==='error'?'서버 연결에 실패했습니다.':'실시간 서버 데이터 연결 중...'}</p>{remoteState==='empty'&&<><p>최초 한 번만 이 휴대폰의 기존 데이터를 서버에 등록합니다. 다른 휴대폰에서는 이 버튼을 누르지 마세요.</p><button onClick={importLocal}>이 휴대폰 데이터로 서버 시작</button></>}{remoteError&&<p role="alert" className="cloud-error">{remoteError}</p>}<button onClick={()=>signOut(auth)}>로그아웃</button></div>
   return <div className="app">
     <header><div><span className="kicker">ROOM LIVE · v0.4.2</span><h1>룸 라이브</h1><p>방 · 태그 · 시간 통합 관리</p></div><span className="status">● 로컬 테스트</span></header>
