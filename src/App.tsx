@@ -21,7 +21,7 @@ function read(): Store {
     const byName = (name:string) => rooms.find(r=>r.id===name)
     const layout = old.layout?.length ? old.layout : rooms.map(r=>r.id)
     const migrated = groups.map((g,i)=>({...g,layout:(g.layout?.length ? g.layout : i===0 ? layout : []).map(key=>key===null?null:rooms.find(r=>r.uid===key&&r.groupId===g.id)?.uid??rooms.find(r=>r.id===key&&r.groupId===g.id)?.uid??null)}))
-    const enrich = <T extends {room:string;roomUid?:string}>(items:T[])=>items.map(x=>({...x,roomUid:x.roomUid??byName(x.room)?.uid}))
+    const enrich = <T extends {room:string;roomUid?:string},>(items:T[])=>items.map(x=>({...x,roomUid:x.roomUid??byName(x.room)?.uid}))
     const payments = (old.payments??[]).map(p=>({...p,roomUid:p.roomUid??byName(p.room)?.uid,groupId:p.groupId??byName(p.room)?.groupId??groups[0].id,shopId:p.shopId??groups.find(g=>g.id===(byName(p.room)?.groupId??groups[0].id))?.shopId??shops[0].id}))
     return {...seed,...old,rooms,shops,groups:migrated,payments,logs:enrich(old.logs??[]),visits:enrich(old.visits??[]),sessions:enrich(old.sessions??[])}
 
