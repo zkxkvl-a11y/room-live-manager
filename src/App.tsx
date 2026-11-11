@@ -8,6 +8,7 @@ import { auth, database, roomLiveRef, ADMIN_UID } from './firebase'
 import { seed, read, normalizeRemote, format, operatingDay, ledgerDay, date } from './store-model'
 import { workerViewOf } from './worker-view'
 import { applyCheckout } from './services/checkout'
+import { OPERATIONS_PATH, FINANCE_PATH, CHECKOUT_PATH, toOperations, mergeSplit } from './services/split-store'
 import type { ObserverRoom, ObserverSnapshot, Room, Log, Payment, Store } from './store-model'
 
 export default function App() {
@@ -29,6 +30,9 @@ export default function App() {
   const transactionQueue = useRef<Promise<unknown>>(Promise.resolve())
   const checkoutPendingRef=useRef(false)
   const [checkoutSaving,setCheckoutSaving]=useState(false)
+  const [v2Active,setV2Active]=useState(false)
+  const v2OperationsRef=useRef<Store|null>(null)
+  const v2PaymentsRef=useRef<Payment[]>([])
   function setStore(update:Store|((previous:Store)=>Store)) {
     if(!canOperate){alert('현황 옵저버는 조회만 가능합니다.');return}
     if(!readyRef.current){alert('서버 데이터 연결이 완료된 후 수정할 수 있습니다.');return}
@@ -36,10 +40,12 @@ export default function App() {
     const operation=async()=>{
       if(!requestedBy||auth.currentUser?.uid!==requestedBy||!readyRef.current)return
       try {
-        const result=await runTransaction(roomLiveRef,current=>{
+        const target=v2Active?ref(database,OPERATIONS_PATH):roomLiveRef
+        const result=await runTransaction(target,current=>{
           if(current===null)return
-          const previous=normalizeRemote(current as Store)
-          return typeof update==='function'?update(previous):update
+          const previous=normalizeRemote(v2Active?{...current,payments:v2PaymentsRef.current} as Store:current as Store)
+          const next=typeof update==='function'?update(previous):update
+          return v2Active?toOperations(next):next
         },{applyLocally:false})
         if(!result.committed)throw Error('서버에 저장되지 않았습니다.')
       }catch(error){setRemoteError('저장 실패: '+(error instanceof Error?error.message:String(error)))}
@@ -89,6 +95,11 @@ export default function App() {
       setRemoteState('loading')
     })
   },[])
+  useEffect(()=>{
+    if(!account||role==='pending'||role==='observer'){setV2Active(false);return}
+    return onValue(ref(database,'roomLiveV2/config/active'),snapshot=>setV2Active(snapshot.val()===true),
+      error=>setRemoteError('V2 설정 확인 실패: '+error.message))
+  },[account,role])
   useEffect(()=>{if((!isAdmin&&page==='settings')||(role==='observer'&&page!=='rooms'))setPage('rooms')},[isAdmin,page,role])
   useEffect(()=>{
     if(!account||role!=='observer')return
@@ -101,24 +112,24 @@ export default function App() {
     return unsubscribe
   },[account,role])
   useEffect(()=>{
-    if(!isAdmin||remoteState!=='ready')return
+    if(!isAdmin||v2Active||remoteState!=='ready')return
     const rooms:ObserverRoom[]=store.rooms.map(r=>{
       const group=(store.groups??[]).find(g=>g.id===r.groupId)
       return {uid:r.uid??r.id,name:r.id,shop:(store.shops??[]).find(sh=>sh.id===group?.shopId)?.name??'',group:group?.name??'',started:r.started??null,ends:r.ends??null,headcount:r.tags.length}
     })
     // A separate, deliberately minimal read-only projection: no names, payments or logs.
     void set(ref(database,'roomLiveObserver'),{rooms,updatedAt:Date.now()}).catch(error=>setRemoteError('현황 공유 갱신 실패: '+String(error)))
-  },[isAdmin,store,remoteState])
+  },[isAdmin,store,remoteState,v2Active])
   useEffect(()=>{
-    if(!isAdmin||remoteState!=='ready'||!readyRef.current)return
+    if(!isAdmin||v2Active||remoteState!=='ready'||!readyRef.current)return
     // Publish a strictly allowlisted view whenever the admin receives an updated store.
     // This is a projection, not a source of truth or a security cutover.
     const view=workerViewOf(store)
     void set(ref(database,'roomLiveV2/workerView'),view).catch(error=>
       setRemoteError('실무자 조회 데이터 동기화 실패: '+String(error)))
-  },[isAdmin,store,remoteState])
+  },[isAdmin,store,remoteState,v2Active])
   useEffect(()=>{
-    if(!isAdmin||remoteState!=='ready'||!readyRef.current)return
+    if(!isAdmin||v2Active||remoteState!=='ready'||!readyRef.current)return
     // Stage finance from the same authoritative stream used by the administrator.
     // Do not promote V2 to the live ledger here: workers still write to roomLive.
     const financeRef=ref(database,'roomLiveV2/finance')
@@ -140,7 +151,7 @@ export default function App() {
     },{applyLocally:false}).then(result=>{
       if(!result.committed)setRemoteError('V2 장부 갱신 보류: 기존 V2 결제에 원본에 없는 ID가 있습니다. 관리자 대조 필요')
     }).catch(error=>setRemoteError('V2 장부 동기화 실패: '+String(error)))
-  },[isAdmin,store,remoteState])
+  },[isAdmin,store,remoteState,v2Active])
   useEffect(()=>{
     if(!account||role==='pending'||role==='observer')return
     setRemoteError('')
