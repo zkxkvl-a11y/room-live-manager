@@ -170,7 +170,8 @@ export default function App() {
         const incoming=incomingById.get(old.id)
         return incoming&&((old.correctedAt??0)>(incoming.correctedAt??0))
       }))return
-      return finance
+      // Preserve admin-only audit history and any future finance metadata during staging.
+      return {...current,...finance}
     },{applyLocally:false}).then(result=>{
       if(!result.committed)setRemoteError('V2 장부 갱신 보류: 기존 V2 결제에 원본에 없는 ID가 있습니다. 관리자 대조 필요')
     }).catch(error=>setRemoteError('V2 장부 동기화 실패: '+String(error)))
