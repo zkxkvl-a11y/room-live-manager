@@ -8,15 +8,14 @@ const roleAllowed=(role)=>role==='worker'||role==='staff'
 const array=(v)=>Array.isArray(v)?v:v&&typeof v==='object'?Object.values(v):[]
 const roomKey=(r)=>r.uid||r.id
 const sameRoom=(r,room)=>r.roomUid? r.roomUid===roomKey(room):r.room===room.id
-const clean=(s)=>s.replace(/[.#$\[\]/]/g,'_')
 
 exports.processCheckout=onValueCreated({ref:BASE+'/checkoutRequests/{requestId}',region:'asia-southeast1',instance:'room-live-manager-default-rtdb'},async(event)=>{
   const id=event.params.requestId
   const request=event.data.val()
   const db=getDatabase()
   const uid=request?.uid
-  if(!uid||request.id!==id)return
-  const [roleSnap]=await Promise.all([db.ref('roomLiveAccess/'+clean(uid)).get()])
+  if(!uid||!(/^[a-zA-Z0-9]{20,128}$/).test(uid)||request.id!==id)return
+  const [roleSnap]=await Promise.all([db.ref('roomLiveAccess/'+uid).get()])
   if(uid!==ADMIN&&!roleAllowed(roleSnap.val())){
     await db.ref(BASE+'/checkoutRequests/'+id+'/status').set('rejected')
     return
