@@ -32,7 +32,9 @@ export default function App() {
   function setStore(update:Store|((previous:Store)=>Store)) {
     if(!canOperate){alert('현황 옵저버는 조회만 가능합니다.');return}
     if(!readyRef.current){alert('서버 데이터 연결이 완료된 후 수정할 수 있습니다.');return}
+    const requestedBy=auth.currentUser?.uid
     const operation=async()=>{
+      if(!requestedBy||auth.currentUser?.uid!==requestedBy||!readyRef.current)return
       try {
         const result=await runTransaction(roomLiveRef,current=>{
           if(current===null)return
@@ -154,7 +156,7 @@ export default function App() {
   useEffect(()=>{
     if(!account||isAdmin)return
     const unsub=onValue(ref(database,'roomLiveAccess/'+account.uid),snapshot=>{
-      setRole(snapshot.val()==='worker'||snapshot.val()==='staff'?'worker':snapshot.val()==='observer'?'observer':snapshot.val()==='admin'?'admin':'pending')
+      setRole(snapshot.val()==='worker'||snapshot.val()==='staff'?'worker':snapshot.val()==='observer'?'observer':'pending')
     },error=>{setRole('pending');setRemoteError('권한 확인 실패: '+error.message)})
     return unsub
   },[account,isAdmin])
