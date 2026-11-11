@@ -68,15 +68,6 @@ export default function App() {
   const [role,setRole]=useState<'admin'|'worker'|'observer'|'pending'>('pending')
   const [approvedStaff,setApprovedStaff]=useState<Record<string,string>>({})
   const [observerData,setObserverData]=useState<ObserverSnapshot|null>(null)
-  const [ledgerBackupState,setLedgerBackupState]=useState<'idle'|'saving'|'done'|'error'>('idle')
-  const [splitStage,setSplitStage]=useState<'idle'|'saving'|'verified'|'error'>('idle')
-  const [splitAudit,setSplitAudit]=useState<string>('미검증')
-  const [splitAuditing,setSplitAuditing]=useState(false)
-  const [refreshingSplit,setRefreshingSplit]=useState(false)
-  const [submissionAudit,setSubmissionAudit]=useState('미검증')
-  const [submissionAuditing,setSubmissionAuditing]=useState(false)
-  const [cutoverChecking,setCutoverChecking]=useState(false)
-  const [cutoverReport,setCutoverReport]=useState('미검증')
   const isAdmin=account?.uid===ADMIN_UID
   const canOperate=role==='admin'||role==='worker'
   const [authLoading, setAuthLoading] = useState(true)
@@ -305,172 +296,6 @@ export default function App() {
       updatedAt:Date.now()
     }
   }
-  async function checkCutoverReadiness(){
-    if(!isAdmin||cutoverChecking)return
-    setCutoverChecking(true)
-    try{
-      const {get}=await import('firebase/database')
-      const [legacy,v2,access]=await Promise.all([
-        get(roomLiveRef),get(ref(database,'roomLiveV2')),get(ref(database,'roomLiveAccess'))
-      ])
-      if(!legacy.exists()||!v2.exists())throw Error('원본 또는 V2 데이터가 없습니다.')
-      const source=normalizeRemote(legacy.val() as Store)
-      const raw=v2.val() as {operations?:Store;finance?:{payments?:Payment[]|Record<string,Payment>};workerView?:unknown}
-      if(!raw.operations||!raw.finance)throw Error('V2 운영/장부 경로가 누락됐습니다.')
-      const ops=normalizeRemote({...raw.operations,payments:[]})
-      const mirrored=Array.isArray(raw.finance.payments)?raw.finance.payments:Object.values(raw.finance.payments??{})
-      const samePayments=source.payments.length===mirrored.length&&source.payments.every(p=>mirrored.some(x=>x.id===p.id&&JSON.stringify(x)===JSON.stringify(p)))
-      const sameRooms=source.rooms.length===ops.rooms.length&&source.rooms.every(r=>ops.rooms.some(x=>(x.uid??x.id)===(r.uid??r.id)&&JSON.stringify(x)===JSON.stringify(r)))
-      const sameSessions=source.sessions.length===ops.sessions.length&&source.sessions.every(r=>ops.sessions.some(x=>x.id===r.id&&JSON.stringify(x)===JSON.stringify(r)))
-      const accessMap=(access.val()??{}) as Record<string,string>
-      const legacyStaff=Object.values(accessMap).filter(v=>v==='staff').length
-      const report='결제 '+(samePayments?'일치':'불일치')+' · 방 '+(sameRooms?'일치':'불일치')+' · 회차 '+(sameSessions?'일치':'불일치')+' · 기존 staff 계정 '+legacyStaff+'개 · 실무자 조회 경로 '+(raw.workerView?'있음':'없음')
-      setCutoverReport(report)
-      alert(report+'\\n주의: 데이터가 일치하더라도 서버 운영 쓰기 경로 전환과 Firebase 보안 규칙 교체 전에는 장부 접근 차단이 완료되지 않습니다.')
-    }catch(error){setCutoverReport('검증 실패: '+String(error));setRemoteError('전환 사전 점검 실패: '+String(error))}
-    finally{setCutoverChecking(false)}
-  }
-  async function auditSubmissions(){
-    if(!isAdmin||submissionAuditing)return
-    setSubmissionAuditing(true)
-    try{
-      const {get}=await import('firebase/database')
-      const [sourceSnapshot,inboxSnapshot]=await Promise.all([
-        get(roomLiveRef),get(ref(database,'roomLiveV2/paymentSubmissions'))
-      ])
-      if(!sourceSnapshot.exists())throw Error('원본 장부가 없습니다.')
-      const payments=normalizeRemote(sourceSnapshot.val() as Store).payments
-      const inbox=inboxSnapshot.val() as Record<string,{id:string;uid:string;roomUid:string;amount:number;method:string;at:number}>|null
-      const submissions=Object.entries(inbox??{})
-      const paymentById=new Map(payments.map(payment=>[payment.id,payment]))
-      const invalidIds:string[]=[],unknownIds:string[]=[],mismatchedIds:string[]=[]
-      for(const [key,item] of submissions){
-        if(!item||key!==item.id||!item.uid||!item.roomUid){invalidIds.push(key);continue}
-        const payment=paymentById.get(key)
-        if(!payment){unknownIds.push(key);continue}
-        if(payment.roomUid!==item.roomUid||payment.amount!==item.amount||payment.method!==item.method||payment.at!==item.at)mismatchedIds.push(key)
-      }
-      // Old payments predate the submission feature and are not expected to be mirrored.
-      const summary='제출 '+submissions.length+'건 / 원본 결제 '+payments.length+'건 · 원본에 없는 제출 '+unknownIds.length+'건 · 금액/수단/방 불일치 '+mismatchedIds.length+'건 · 잘못된 제출 '+invalidIds.length+'건'
-      setSubmissionAudit(summary)
-      alert(summary+(unknownIds.length||mismatchedIds.length||invalidIds.length?'\\n불일치 ID: '+[...unknownIds,...mismatchedIds,...invalidIds].slice(0,8).join(', '):'\\n현재 확인된 제출 기록은 원본 결제와 일치합니다. 과거 결제는 제출 기록이 없을 수 있습니다.'))
-    }catch(error){setSubmissionAudit('대조 실패: '+String(error));setRemoteError('결제 제출 대조 실패: '+String(error))}
-    finally{setSubmissionAuditing(false)}
-  }
-  async function publishWorkerView(){
-    if(!isAdmin||!readyRef.current)return
-    try{
-      const {get}=await import('firebase/database')
-      const snapshot=await get(roomLiveRef)
-      if(!snapshot.exists())throw Error('원본 데이터 없음')
-      const view=workerViewOf(normalizeRemote(snapshot.val() as Store))
-      await set(ref(database,'roomLiveV2/workerView'),view)
-      alert('실무자 전용 최소 조회 데이터 게시 완료. 결제·장부·운영 로그는 포함되지 않았습니다. 기존 앱의 권한은 아직 전환하지 않았습니다.')
-    }catch(error){setRemoteError('실무자 조회 데이터 게시 실패: '+String(error))}
-  }
-  async function refreshSplit(){
-    if(!isAdmin||refreshingSplit||!readyRef.current)return
-    if(!confirm('현재 서버 원본을 다시 읽어 V2 운영/장부 복사본을 갱신합니다. 기존 원본과 최초 장부 백업은 변경하지 않습니다. 진행할까요?'))return
-    setRefreshingSplit(true)
-    try{
-      const {get}=await import('firebase/database')
-      const sourceRef=roomLiveRef
-      const before=(await get(sourceRef)).val() as Store|null
-      if(!before)throw Error('원본 데이터 없음')
-      const source=normalizeRemote(before)
-      const {payments,...operations}=source
-      // Keep both V2 branches together in one transaction. V2 is still a staging snapshot.
-      const v2Ref=ref(database,'roomLiveV2')
-      const result=await runTransaction(v2Ref,current=>{
-        if(current===null||typeof current!=='object'||!('operations' in current)||!('finance' in current))return
-        return {operations,finance:{payments:payments??[],sessions:source.sessions??[]}}
-      },{applyLocally:false})
-      if(!result.committed)throw Error('V2 경로가 준비되지 않았거나 갱신이 취소되었습니다.')
-      const after=(await get(sourceRef)).val() as Store|null
-      if(!after)throw Error('원본 재확인 실패')
-      const fresh=normalizeRemote(after)
-      const unchanged=JSON.stringify(source)===JSON.stringify(fresh)
-      setSplitStage(unchanged?'verified':'idle')
-      setSplitAudit('V2 갱신: 방 '+source.rooms.length+'개 · 결제 '+source.payments.length+'건 · 원본 재확인 '+(unchanged?'변경 없음':'갱신 도중 변경 감지'))
-      alert(unchanged?'V2 복사본 갱신 완료. 운영 경로는 아직 기존 원본입니다.':'V2 복사 중 원본 변경이 감지되었습니다. 운영 경로를 전환하지 마세요. 다시 갱신해야 합니다.')
-    }catch(error){setSplitStage('error');setRemoteError('V2 복사본 갱신 실패: '+String(error))}
-    finally{setRefreshingSplit(false)}
-  }
-  async function auditSplit(){
-    if(!isAdmin||splitAuditing)return
-    setSplitAuditing(true)
-    try{
-      const {get}=await import('firebase/database')
-      const [original,ops,fin]=await Promise.all([
-        get(roomLiveRef),
-        get(ref(database,'roomLiveV2/operations')),
-        get(ref(database,'roomLiveV2/finance'))
-      ])
-      if(!original.exists()||!ops.exists()||!fin.exists())throw Error('원본 또는 V2 복사본이 없습니다.')
-      const source=normalizeRemote(original.val() as Store)
-      const operations=normalizeRemote({...ops.val(),payments:[]})
-      const rawFinance=fin.val() as {payments?:Payment[]|Record<string,Payment>}
-      const copied=Array.isArray(rawFinance.payments)?rawFinance.payments:Object.values(rawFinance.payments??{})
-      const sourceIds=new Map(source.payments.map(p=>[p.id,p]))
-      const copiedIds=new Map(copied.map(p=>[p.id,p]))
-      const missing=source.payments.filter(p=>!copiedIds.has(p.id))
-      const stale=source.payments.filter(p=>{
-        const old=copiedIds.get(p.id)
-        return old&&JSON.stringify(old)!==JSON.stringify(p)
-      })
-      const extra=copied.filter(p=>!sourceIds.has(p.id))
-      const roomMismatch=source.rooms.length!==operations.rooms.length||
-        source.rooms.some(r=>!operations.rooms.some(x=>(x.uid??x.id)===(r.uid??r.id)&&JSON.stringify(x)===JSON.stringify(r)))
-      const sessionMismatch=source.sessions.length!==operations.sessions.length
-      const message='원본 결제 '+source.payments.length+'건 / V2 '+copied.length+'건 · 신규 누락 '+missing.length+'건 · 변경 미반영 '+stale.length+'건 · V2 추가 '+extra.length+'건 · 방 상태 불일치 '+(roomMismatch?'있음':'없음')+' · 이용 회차 건수 불일치 '+(sessionMismatch?'있음':'없음')
-      setSplitAudit(message)
-      if(missing.length||stale.length||extra.length||roomMismatch||sessionMismatch){
-        setSplitStage('idle')
-        alert('V2 데이터가 현재 원본과 일치하지 않습니다. 기존 운영 경로를 유지합니다.\\n'+message)
-      }else{setSplitStage('verified');alert('원본/V2 현재 시점 대조 완료. 단, 이후 결제나 방 변경 시 다시 불일치할 수 있습니다.\\n'+message)}
-    }catch(error){setSplitStage('error');setSplitAudit('대조 실패: '+String(error));setRemoteError('데이터 대조 실패: '+String(error))}
-    finally{setSplitAuditing(false)}
-  }
-  async function stageSplit(){
-    if(!isAdmin||splitStage==='saving'||!readyRef.current)return
-    if(!confirm('운영 데이터와 장부를 새 관리자 전용 경로에 최초 1회 복사하고 건수를 검증할까요? 기존 데이터는 유지됩니다.'))return
-    setSplitStage('saving')
-    try{
-      // Stage from the authoritative server snapshot, not potentially stale React state.
-      const {get}=await import('firebase/database')
-      const source=(await get(roomLiveRef)).val() as Store|null
-      if(!source)throw Error('기존 서버 데이터가 없습니다.')
-      const data=normalizeRemote(source)
-      const {payments:financial,...operations}=data
-      const ledger={payments:financial??[],sessions:data.sessions??[]}
-      const opRef=ref(database,'roomLiveV2/operations')
-      const financeRef=ref(database,'roomLiveV2/finance')
-      const opResult=await runTransaction(opRef,current=>current===null?operations:undefined,{applyLocally:false})
-      const finResult=await runTransaction(financeRef,current=>current===null?ledger:undefined,{applyLocally:false})
-      const stagedOps=(await get(opRef)).val()
-      const stagedFin=(await get(financeRef)).val()
-      if(!stagedOps||!stagedFin)throw Error('분리 데이터 확인 실패')
-      const checkOps=normalizeRemote({...stagedOps,payments:[]})
-      const checkFin=normalizeRemote({...data,payments:stagedFin.payments??[]})
-      if(checkOps.rooms.length!==data.rooms.length||checkOps.sessions.length!==data.sessions.length||checkFin.payments.length!==data.payments.length)throw Error('복사 건수 불일치. 원본은 유지되었습니다.')
-      setSplitStage('verified')
-      alert('운영 데이터 '+data.rooms.length+'개 방 / 결제 '+data.payments.length+'건 복사 검증 완료. 기존 원본은 유지됩니다.'+(opResult.committed&&finResult.committed?'':' 기존 스테이징 데이터가 있어 재사용했습니다.'))
-    }catch(error){setSplitStage('error');setRemoteError('데이터 분리 준비 실패: '+String(error))}
-  }
-  async function backupLedger(){
-    if(!isAdmin||ledgerBackupState==='saving')return
-    if(!confirm('현재 서버의 전체 결제 내역을 관리자 전용 별도 경로에 백업할까요? 기존 장부는 변경하지 않습니다.'))return
-    setLedgerBackupState('saving')
-    try{
-      // Write once, not on every live update: this is a migration checkpoint, not a second live ledger.
-      const result=await runTransaction(ref(database,'roomLiveLedgerMigration'),current=>{
-        if(current!==null)return
-        return {createdAt:Date.now(),source:'roomLive/payments',payments:store.payments??[],sessions:store.sessions??[]}
-      },{applyLocally:false})
-      if(!result.committed){alert('이미 백업이 존재합니다. 덮어쓰지 않았습니다.')}
-      setLedgerBackupState('done')
-    }catch(error){setLedgerBackupState('error');setRemoteError('장부 백업 실패: '+String(error))}
-  }
   async function importLocal(){
     if(!isAdmin)return
     if(!confirm('이 휴대폰의 기존 데이터를 최초 서버 데이터로 등록할까요? 서버에 데이터가 이미 있다면 덮어쓰지 않습니다.'))return
@@ -669,7 +494,7 @@ export default function App() {
     {page==='attendance'&&<main><div className="section"><h2>출근부 <small>출근 {attendance.filter(h=>h.working).length}명 / 전체 {attendance.length}명</small></h2><button onClick={()=>{let name=prompt('새 이름 등록')?.trim();while(name){if(attendance.some(h=>h.name.toLocaleLowerCase()===name!.toLocaleLowerCase())){alert('이미 등록된 이름입니다.');name=prompt('다른 이름 입력',name)?.trim();continue}setStore(v=>({...v,attendance:[...(v.attendance??[]),{id:crypto.randomUUID(),name,working:false}]}));break}}}>+ 이름 추가</button></div><p className="hint">이름을 누르면 출근, 다시 누르면 퇴근합니다. 출근한 인원은 방 현황 대기 목록에 자동 표시됩니다.</p><div className="attendance-list">{attendance.map(h=><div key={h.id} className={h.working?"attendance-item working":"attendance-item"}><button className="attendance-toggle" onClick={()=>toggleAttendance(h.id)}><strong>{h.name}</strong><span>{h.working?'● 출근 중':'○ 퇴근'}</span></button><button className="attendance-edit" onClick={()=>renameAttendance(h.id)}>이름 수정</button></div>)}</div></main>}
     {page==='payments'&&isAdmin&&<main><h2>장부</h2><p className="hint">방 이용 시작 시각 기준 · 한국시간 17:00 ~ 다음 날 13:00 · 13:00~17:00 시작 건은 미분류</p><div className="filters"><button className={ledgerPeriod==='day'?'active':''} onClick={()=>{setLedgerPeriod('day');setPayDay('')}}>일매출</button><button className={ledgerPeriod==='month'?'active':''} onClick={()=>{setLedgerPeriod('month');setPayDay('')}}>월매출</button><input type={ledgerPeriod==='day'?'date':'month'} value={payDay?ledgerPeriod==='month'?payDay.slice(0,7):payDay:ledgerPeriod==='month'?kstDate(Date.now()).slice(0,7):operatingDay(Date.now())??kstDate(Date.now())} onChange={e=>setPayDay(e.target.value)}/></div><div className="shop-tabs"><button className={payShopTab==='all'?'active':''} onClick={()=>{setPayShopTab('all');setPayGroup('all')}}>전체 가게</button>{shops.map(sh=><button key={sh.id} className={payShopTab===sh.id?'active':''} onClick={()=>{setPayShopTab(sh.id);setPayGroup('all')}}>{sh.name}</button>)}</div><div className="filters"><select value={payGroup} onChange={e=>setPayGroup(e.target.value)}><option value="all">전체 묶음</option>{groups.filter(g=>payShopTab==='all'||g.shopId===payShopTab).map(g=><option key={g.id} value={g.id}>{g.name}</option>)}</select><select value={ledgerMethod} onChange={e=>setLedgerMethod(e.target.value as typeof ledgerMethod)}>{(['전체','현금','카드','이체','미수'] as const).map(m=><option key={m} value={m}>{m}</option>)}</select></div>
       {(()=>{const selected=payDay?ledgerPeriod==='month'?payDay.slice(0,7):payDay:ledgerPeriod==='month'?kstDate(Date.now()).slice(0,7):operatingDay(Date.now())??kstDate(Date.now());const all=(store.payments??[]).filter(p=>{const day=ledgerDay(p,store.sessions);return day!==null&&(ledgerPeriod==='day'?day===selected:day.slice(0,7)===selected)&&(payShopTab==='all'||p.shopId===payShopTab)&&(payGroup==='all'||p.groupId===payGroup)});const total=(method:Payment['method'])=>all.filter(p=>p.method===method).reduce((n,p)=>n+p.amount,0);const cash=total('현금'),card=total('카드'),transfer=total('이체'),due=total('미수');const items=all.filter(p=>ledgerMethod==='전체'||p.method===ledgerMethod);const unclassified=(store.payments??[]).filter(p=>ledgerDay(p,store.sessions)===null);return <><div className="payment-summary"><div><small>수금 합계</small><strong>{(cash+card+transfer).toLocaleString('ko-KR')}원</strong></div><div><small>미수 합계</small><strong>{due.toLocaleString('ko-KR')}원</strong></div></div><h3>결제수단별 집계</h3><div className="ledger-breakdown">{([['현금',cash],['카드',card],['이체',transfer],['미수',due]] as const).map(([name,value])=><div className="manage-row" key={name}><b>{name}</b><strong>{value.toLocaleString('ko-KR')}원</strong><small>{all.filter(p=>p.method===name).length}건</small></div>)}</div><h3>결제 내역 · {items.length}건</h3><label className="memo-filter"><input type="checkbox" checked={memoOnly} onChange={e=>setMemoOnly(e.target.checked)}/> 비고만</label>{items.filter(p=>!memoOnly||Boolean(p.memo?.trim())).map(p=><div className="payment-entry" key={p.id}><strong>{p.room} · {p.method} · {p.amount.toLocaleString('ko-KR')}원</strong><small>{shops.find(x=>x.id===p.shopId)?.name} / {groups.find(g=>g.id===p.groupId)?.name} · 결제 {date(p.at)}</small><small>귀속 영업일 {ledgerDay(p,store.sessions)}</small>{p.manager&&<small>담당: {p.manager}</small>}{p.memo&&<p>비고: {p.memo}</p>}{p.correctionNote&&<small>정정 기록: {p.correctionNote} · {p.correctedAt?date(p.correctedAt):''}</small>}<div className="buttons"><button onClick={()=>correctLedgerPayment(p.id)}>정정</button>{p.method==='미수'&&<button onClick={()=>openCollect(p.id)}>미수 전액 회수</button>}</div></div>)}{items.length===0&&<p className="hint">선택한 기간의 결제 기록이 없습니다.</p>}{unclassified.length>0&&<p className="hint">마감 후 미분류 거래 {unclassified.length}건이 있습니다. 영업일 자동 귀속에서 제외되며 추후 정정 기능이 필요합니다.</p>}</>})()}</main>}
-    {page==='settings'&&isAdmin&&<main><h2>설정</h2><div className="section"><span>서버 연결: Firebase 실시간 동기화 · {role==='admin'?'관리자':'직원'}</span><button onClick={()=>signOut(auth)}>로그아웃</button></div><h3>직원 접근 승인</h3><p className="hint">Firebase Authentication에서 직원 계정을 만든 뒤 UID를 등록하세요. 직원은 승인 후 같은 데이터를 실시간으로 공유합니다.</p><button className="manage-add" onClick={addStaff}>+ 직원 UID 승인</button>{Object.entries(approvedStaff).map(([uid,v])=><div className="manage-row" key={uid}><small>{uid} · {v==='staff'||v==='worker'?'실무자':v==='observer'?'현황 옵저버':'관리자'}</small><button onClick={()=>changeStaffRole(uid)}>권한 변경</button><button onClick={()=>revokeStaff(uid)}>승인 해제</button></div>)}<h3>실제 권한 전환 사전 점검</h3><p className="hint">기존 원본과 V2 장부·방·이용 회차를 내용까지 대조하고 기존 staff 계정 수를 확인합니다. 서버 규칙이나 운영 데이터는 변경하지 않습니다.</p><button className="manage-add" disabled={cutoverChecking||remoteState!=='ready'} onClick={checkCutoverReadiness}>{cutoverChecking?'점검 중...':'권한 전환 사전 점검'}</button><p className="hint">{cutoverReport}</p><h3>결제 제출·원본 장부 대조</h3><p className="hint">새 결제 제출 기록의 ID·금액·결제수단·방·시간을 원본 장부와 대조합니다. 기존 결제 내역이나 제출 기록은 변경하지 않습니다.</p><button className="manage-add" disabled={submissionAuditing||remoteState!=='ready'} onClick={auditSubmissions}>{submissionAuditing?'대조 중...':'결제 제출 기록 대조'}</button><p className="hint">{submissionAudit}</p><h3>실무자 최소 조회 데이터 준비 (v0.5.8)</h3><p className="hint">방 현황·출근부·가게 배치만 별도 경로에 게시합니다. 결제 금액·장부·로그·회차 기록은 제외합니다. 현재는 시험용이며 실시간 자동 반영은 아닙니다.</p><button className="manage-add" disabled={remoteState!=='ready'} onClick={publishWorkerView}>실무자 조회 데이터 게시</button><h3>V2 최신 데이터 재동기화 (v0.5.7)</h3><p className="hint">운영 중 변경된 방/결제 데이터를 V2 복사본에 다시 반영합니다. 최초 백업과 기존 원본은 보존하며, 실제 서버 운영 경로는 아직 전환하지 않습니다.</p><button className="manage-add" disabled={refreshingSplit||remoteState!=='ready'} onClick={refreshSplit}>{refreshingSplit?'V2 갱신 중...':'V2 최신 원본으로 갱신'}</button><h3>V2 전환 전 데이터 대조 (v0.5.6)</h3><p className="hint">기존 원본과 V2의 결제 ID·금액·수단·방 상태를 비교합니다. 차이가 있으면 전환하지 않고 기존 운영을 유지합니다.</p><button className="manage-add" disabled={splitAuditing||remoteState!=='ready'} onClick={auditSplit}>{splitAuditing?'대조 중...':'원본과 V2 데이터 대조'}</button><p className="hint">{splitAudit}</p><h3>서버 데이터 분리 준비 (v0.5.5)</h3><p className="hint">관리자 전용 roomLiveV2/operations 및 roomLiveV2/finance 경로에 원본을 유지한 채 복사합니다. 아직 실무자 권한은 전환하지 않습니다.</p><button className="manage-add" disabled={splitStage==='saving'||remoteState!=='ready'} onClick={stageSplit}>{splitStage==='saving'?'복사·검증 중...':splitStage==='verified'?'복사 검증 완료':'운영·장부 데이터 분리 복사'}</button><h3>장부 데이터 이전 준비</h3><p className="hint">현재 결제 기록을 관리자 전용 별도 경로에 최초 1회 복사합니다. 원본은 삭제하지 않습니다. Firebase 규칙에 roomLiveLedgerMigration 관리자 전용 접근을 먼저 추가해야 합니다.</p><button className="manage-add" disabled={ledgerBackupState==='saving'} onClick={backupLedger}>{ledgerBackupState==='saving'?'백업 진행 중...':ledgerBackupState==='done'?'백업 확인 완료':'관리자 전용 장부 백업 생성'}</button><h3>결제 입력 항목</h3><label className="setting-row"><span>와리 표시</span><input type="checkbox" checked={store.showWari!==false} onChange={e=>setStore(v=>({...v,showWari:e.target.checked}))}/></label><label className="setting-row"><span>WT 표시</span><input type="checkbox" checked={store.showWt!==false} onChange={e=>setStore(v=>({...v,showWt:e.target.checked}))}/></label><h3>가게 관리</h3>{shops.map(sh=><div className="manage-row" key={sh.id}><b>{sh.name}</b><button onClick={()=>renameShop(sh.id)}>이름 변경</button></div>)}<button className="manage-add" onClick={()=>{const name=prompt('추가할 가게 이름')?.trim();if(name){if(shops.some(x=>x.name.toLocaleLowerCase()===name.toLocaleLowerCase())){alert('이미 등록된 가게 이름입니다.');return}setStore(v=>({...v,shops:[...(v.shops??[]),{id:crypto.randomUUID(),name}]}))}}}>+ 가게 추가</button><h3>방 묶음 관리</h3>{groups.map(g=><div className="manage-row" key={g.id}><div><b>{g.name}</b><small>{shops.find(sh=>sh.id===g.shopId)?.name}</small></div><button onClick={()=>{const name=prompt('묶음 이름',g.name)?.trim();if(name)setStore(v=>({...v,groups:(v.groups??[]).map(x=>x.id===g.id?{...x,name}:x)}))}}>이름</button><button onClick={()=>{if(store.rooms.some(r=>r.groupId===g.id)){alert('방이 있는 묶음은 삭제할 수 없습니다.');return}if(confirm(g.name+' 삭제할까요?'))setStore(v=>({...v,groups:(v.groups??[]).filter(x=>x.id!==g.id)}))}}>삭제</button></div>)}<button className="manage-add" onClick={()=>{const name=prompt('새 묶음 이름')?.trim();if(!name)return;const sh=prompt('소속 가게 이름',shops[0]?.name);const target=shops.find(x=>x.name===sh);if(!target){alert('등록된 가게 이름을 입력해 주세요.');return}setStore(v=>({...v,groups:[...(v.groups??[]),{id:crypto.randomUUID(),shopId:target.id,name,layout:[]}]}))}}>+ 묶음 추가</button><p className="hint">Firebase 실시간 공유 사용 중 · 직원은 방 현황, 출근부, 기록, 결제 기능을 사용합니다.</p><button className="danger" onClick={()=>{if(confirm('모든 테스트 기록을 삭제할까요?'))setStore(seed)}}>테스트 기록 초기화</button></main>}
+    {page==='settings'&&isAdmin&&<main><h2>설정</h2><div className="section"><span>서버 연결: Firebase 실시간 동기화 · {role==='admin'?'관리자':'직원'}</span><button onClick={()=>signOut(auth)}>로그아웃</button></div><h3>직원 접근 승인</h3><p className="hint">Firebase Authentication에서 직원 계정을 만든 뒤 UID를 등록하세요. 직원은 승인 후 같은 데이터를 실시간으로 공유합니다.</p><button className="manage-add" onClick={addStaff}>+ 직원 UID 승인</button>{Object.entries(approvedStaff).map(([uid,v])=><div className="manage-row" key={uid}><small>{uid} · {v==='staff'||v==='worker'?'실무자':v==='observer'?'현황 옵저버':'관리자'}</small><button onClick={()=>changeStaffRole(uid)}>권한 변경</button><button onClick={()=>revokeStaff(uid)}>승인 해제</button></div>)}<h3>결제 입력 항목</h3><label className="setting-row"><span>와리 표시</span><input type="checkbox" checked={store.showWari!==false} onChange={e=>setStore(v=>({...v,showWari:e.target.checked}))}/></label><label className="setting-row"><span>WT 표시</span><input type="checkbox" checked={store.showWt!==false} onChange={e=>setStore(v=>({...v,showWt:e.target.checked}))}/></label><h3>가게 관리</h3>{shops.map(sh=><div className="manage-row" key={sh.id}><b>{sh.name}</b><button onClick={()=>renameShop(sh.id)}>이름 변경</button></div>)}<button className="manage-add" onClick={()=>{const name=prompt('추가할 가게 이름')?.trim();if(name){if(shops.some(x=>x.name.toLocaleLowerCase()===name.toLocaleLowerCase())){alert('이미 등록된 가게 이름입니다.');return}setStore(v=>({...v,shops:[...(v.shops??[]),{id:crypto.randomUUID(),name}]}))}}}>+ 가게 추가</button><h3>방 묶음 관리</h3>{groups.map(g=><div className="manage-row" key={g.id}><div><b>{g.name}</b><small>{shops.find(sh=>sh.id===g.shopId)?.name}</small></div><button onClick={()=>{const name=prompt('묶음 이름',g.name)?.trim();if(name)setStore(v=>({...v,groups:(v.groups??[]).map(x=>x.id===g.id?{...x,name}:x)}))}}>이름</button><button onClick={()=>{if(store.rooms.some(r=>r.groupId===g.id)){alert('방이 있는 묶음은 삭제할 수 없습니다.');return}if(confirm(g.name+' 삭제할까요?'))setStore(v=>({...v,groups:(v.groups??[]).filter(x=>x.id!==g.id)}))}}>삭제</button></div>)}<button className="manage-add" onClick={()=>{const name=prompt('새 묶음 이름')?.trim();if(!name)return;const sh=prompt('소속 가게 이름',shops[0]?.name);const target=shops.find(x=>x.name===sh);if(!target){alert('등록된 가게 이름을 입력해 주세요.');return}setStore(v=>({...v,groups:[...(v.groups??[]),{id:crypto.randomUUID(),shopId:target.id,name,layout:[]}]}))}}>+ 묶음 추가</button><p className="hint">Firebase 실시간 공유 사용 중 · 직원은 방 현황, 출근부, 기록, 결제 기능을 사용합니다.</p></main>}
     {remoteError&&<div className="cloud-error" role="alert" onClick={()=>setRemoteError('')}>{remoteError} · 눌러 닫기</div>}
     <nav className="nav-five"><button className={page === 'rooms' ? 'on' : ''} onClick={() => setPage('rooms')}>▦<span>방 현황</span></button><button className={page === 'attendance' ? 'on' : ''} onClick={() => setPage('attendance')}>♙<span>출근부</span></button><button className={page === 'logs' ? 'on' : ''} onClick={() => setPage('logs')}>◷<span>진행 기록</span></button>{isAdmin&&<button className={page === 'payments' ? 'on' : ''} onClick={() => setPage('payments')}>₩<span>장부</span></button>}{isAdmin&&<button className={page === 'settings' ? 'on' : ''} onClick={() => setPage('settings')}>⚙<span>설정</span></button>}{!isAdmin&&<button onClick={()=>signOut(auth)}>⇥<span>로그아웃</span></button>}</nav>
     {newRoomGroup&&<div className="overlay" onClick={()=>setNewRoomGroup(null)}><section className="modal" onClick={e=>e.stopPropagation()}><h2>방 추가</h2><p className="hint">{shops.find(sh=>sh.id===groups.find(g=>g.id===newRoomGroup)?.shopId)?.name} · {groups.find(g=>g.id===newRoomGroup)?.name}</p><label className="amount-label">방 이름<input autoFocus value={newRoomName} onChange={e=>{setNewRoomName(e.target.value.toUpperCase());setRoomError('')}} placeholder="예: 1T" maxLength={40}/></label>{roomError&&<p className="form-error">{roomError}</p>}<div className="buttons"><button onClick={()=>setNewRoomGroup(null)}>취소</button><button onClick={()=>{const name=newRoomName.trim().toUpperCase();const g=groups.find(x=>x.id===newRoomGroup);if(!name||!g){setRoomError('방 이름을 입력해 주세요.');return}if(duplicated(name,g.shopId)){setRoomError('같은 가게에 이미 등록된 방 이름입니다. 다른 이름을 입력해 주세요.');return}setStore(v=>({...v,rooms:[...v.rooms,{uid:crypto.randomUUID(),id:name,groupId:g.id,started:null,ends:null,tags:[]}]}));setNewRoomGroup(null);setNewRoomName('');setRoomError('')}}>방 추가 완료</button></div></section></div>}
