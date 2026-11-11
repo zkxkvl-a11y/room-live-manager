@@ -185,6 +185,12 @@ export default function App() {
       const existingIds=new Set((currentPayments as Payment[]).map(p=>p.id))
       const incomingIds=new Set(finance.payments.map(p=>p.id))
       if([...existingIds].some(id=>!incomingIds.has(id)))return
+      // Protect newer corrections already staged by a later admin update.
+      const incomingById=new Map(finance.payments.map(p=>[p.id,p]))
+      if((currentPayments as Payment[]).some(old=>{
+        const incoming=incomingById.get(old.id)
+        return incoming&&((old.correctedAt??0)>(incoming.correctedAt??0))
+      }))return
       return finance
     },{applyLocally:false}).then(result=>{
       if(!result.committed)setRemoteError('V2 장부 갱신 보류: 기존 V2 결제에 원본에 없는 ID가 있습니다. 관리자 대조 필요')
