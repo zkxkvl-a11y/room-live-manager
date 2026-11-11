@@ -1,5 +1,5 @@
 import type { Log, Payment, Store } from '../store-model.ts'
-import { normalizeRemote } from '../store-model'
+import { normalizeRemote } from '../store-model.ts'
 import { applyCheckout, type CheckoutRequest } from './checkout.ts'
 import { toOperations } from './split-store.ts'
 
