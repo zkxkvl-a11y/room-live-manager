@@ -163,6 +163,14 @@ export default function App() {
     void set(ref(database,'roomLiveObserver'),{rooms,updatedAt:Date.now()}).catch(error=>setRemoteError('현황 공유 갱신 실패: '+String(error)))
   },[isAdmin,store,remoteState])
   useEffect(()=>{
+    if(!isAdmin||remoteState!=='ready'||!readyRef.current)return
+    // Publish a strictly allowlisted view whenever the admin receives an updated store.
+    // This is a projection, not a source of truth or a security cutover.
+    const view=workerViewOf(store)
+    void set(ref(database,'roomLiveV2/workerView'),view).catch(error=>
+      setRemoteError('실무자 조회 데이터 동기화 실패: '+String(error)))
+  },[isAdmin,store,remoteState])
+  useEffect(()=>{
     if(!account||role==='pending'||role==='observer')return
     setRemoteError('')
     const unsubscribe=onValue(roomLiveRef,snapshot=>{
