@@ -203,12 +203,12 @@ export default function App() {
     const note=prompt('정정 사유 (필수)')
     if(!note?.trim()){alert('정정 사유를 입력해 주세요.');return}
     if(!confirm('기존 결제 정보를 정정하고 변경 기록을 남길까요?'))return
-    const at=Date.now()
+    const at=Date.now(),logId=crypto.randomUUID()
     setStore(previous=>{
       const current=previous.payments.find(p=>p.id===id)
       if(!current)return previous
       const next={...current,amount:Number(amountText),method:method as Payment['method'],correctedAt:at,correctionNote:note.trim()}
-      return {...previous,payments:previous.payments.map(p=>p.id===id?next:p),logs:[{id:crypto.randomUUID(),at,room:current.room,roomUid:current.roomUid,action:'관리자 장부 정정 · '+current.method+' '+current.amount+'원 → '+next.method+' '+next.amount+'원 · 사유: '+note.trim()},...previous.logs]}
+      return {...previous,payments:previous.payments.map(p=>p.id===id?next:p),logs:[{id:logId,at,room:current.room,roomUid:current.roomUid,action:'관리자 장부 정정 · '+current.method+' '+current.amount+'원 → '+next.method+' '+next.amount+'원 · 사유: '+note.trim()},...previous.logs]}
     })
   }
   function openCollect(id:string){
@@ -260,11 +260,18 @@ export default function App() {
   const openCheckout = (id: string) => { setCheckout(id); setPayMethod(null); setPayAmount(''); setPayManager(''); setPayMemo(''); setPayWari(''); setPayWt(''); setDetail(null) }
   const touchStart = useRef<{ x: number; y: number } | null>(null)
   function changeTime(id: string, minutes: number) {
-    setStore(s => {
-      const room = s.rooms.find(r => roomKey(r) === id)
-      if (!room || (!room.ends && minutes < 0)) return s
-      const time = Date.now()
-      return { ...s, rooms: s.rooms.map(r => roomKey(r) !== id ? r : { ...r, started: r.started ?? time, ends: Math.max(time, (r.ends ?? time) + minutes * 60000) }), logs: [record(id, `시간 ${minutes > 0 ? '+' : ''}${minutes}분 · 변경 전 ${room.ends ? format(room.ends - time) : '대기'} → 변경 후 ${format(Math.max(time, (room.ends ?? time) + minutes * 60000) - time)}`), ...s.logs], sessions: room.started ? s.sessions : [{ id: crypto.randomUUID(), room: room.id, roomUid:id, started: time, ended: null }, ...s.sessions] }
+    const time=Date.now(),sessionId=crypto.randomUUID(),logId=crypto.randomUUID()
+    setStore(s=>{
+      const room=s.rooms.find(r=>roomKey(r)===id)
+      if(!room||(!room.ends&&minutes<0))return s
+      const openSessions=s.sessions.filter(x=>sameRoom(x,id)&&x.ended===null)
+      if(openSessions.length>1||(room.started===null&&openSessions.length>0))return s
+      const nextEnd=Math.max(time,(room.ends??time)+minutes*60000)
+      return {...s,
+        rooms:s.rooms.map(r=>roomKey(r)!==id?r:{...r,started:r.started??time,ends:nextEnd}),
+        logs:[{id:logId,at:time,room:room.id,roomUid:id,action:`시간 ${minutes>0?'+':''}${minutes}분 · 변경 전 ${room.ends?format(room.ends-time):'대기'} → 변경 후 ${format(nextEnd-time)}`},...s.logs],
+        sessions:room.started!==null?s.sessions:[{id:sessionId,room:room.id,roomUid:id,started:time,ended:null},...s.sessions]
+      }
     })
     setAdjust(null)
   }
