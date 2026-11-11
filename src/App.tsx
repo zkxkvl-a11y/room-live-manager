@@ -8,6 +8,7 @@ import { auth, database, roomLiveRef, ADMIN_UID } from './firebase'
 import { seed, read, normalizeRemote, format, operatingDay, ledgerDay, date } from './store-model'
 import { workerViewOf } from './worker-view'
 import { applyCheckout } from './services/checkout'
+import { applyV2Checkout } from './services/v2-checkout'
 import { OPERATIONS_PATH, FINANCE_PATH, toOperations, mergeSplit } from './services/split-store'
 import type { ObserverRoom, ObserverSnapshot, Room, Log, Payment, Store } from './store-model'
 
@@ -386,18 +387,7 @@ export default function App() {
           if(!v2Active){
             return applyCheckout(normalizeRemote(current as Store),request)
           }
-          const root=current as {
-            operations?:Partial<Store>
-            finance?:{payments?:Payment[]|Record<string,Payment>;auditLogs?:Log[]|Record<string,Log>}
-            [key:string]:unknown
-          }
-          if(!root.operations)return
-          const finance=root.finance??{}
-          const payments=(Array.isArray(finance.payments)?finance.payments:Object.values(finance.payments??{})) as Payment[]
-          const previous=normalizeRemote({...root.operations,payments} as Store)
-          const next=applyCheckout(previous,request)
-          if(!next)return
-          return {...root,operations:toOperations(next),finance:{...finance,payments:next.payments}}
+          return applyV2Checkout(current as Parameters<typeof applyV2Checkout>[0],request)
         },{applyLocally:false})
         if(!result.committed){alert('이미 마감됐거나 다른 사용자가 방 상태를 변경했습니다. 최신 상태를 확인해 주세요.');return}
         setCheckout(null);setDetail(null);setPayMethod(null);setPayAmount('');setPayManager('');setPayMemo('')
