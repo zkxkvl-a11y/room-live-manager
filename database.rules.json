@@ -27,8 +27,8 @@
       },
       "operations": {
         ".read": "auth != null && (auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2' || root.child('roomLiveAccess').child(auth.uid).val() === 'staff' || root.child('roomLiveAccess').child(auth.uid).val() === 'worker')",
-        ".write": "auth != null && (auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2' || root.child('roomLiveAccess').child(auth.uid).val() === 'staff' || root.child('roomLiveAccess').child(auth.uid).val() === 'worker')",
-        ".validate": "newData.hasChildren(['rooms','tags']) && !newData.hasChild('payments') && !newData.hasChild('finance') && !newData.hasChild('checkoutRequests')"
+        ".write": "auth != null && (auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2' || root.child('roomLiveAccess').child(auth.uid).val() === 'staff' || root.child('roomLiveAccess').child(auth.uid).val() === 'worker') && newData.exists() && newData.hasChild('rooms')",
+        ".validate": "newData.hasChild('rooms') && !newData.hasChild('payments') && !newData.hasChild('finance') && !newData.hasChild('checkoutRequests')"
       },
       "finance": {
         ".read": "auth != null && auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2'",
