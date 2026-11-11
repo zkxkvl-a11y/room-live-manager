@@ -83,3 +83,15 @@ test('checkout rejects oversized or whitespace-only identifiers',()=>{
     {paymentId:'p'.repeat(129)},{roomUid:'r'.repeat(129)}
   ])assert.equal(applyCheckout(store(),{...request,...patch}),undefined)
 })
+
+test('stale room state cannot charge an already-paid session twice',()=>{
+  const state=store()
+  state.payments=[{id:'earlier',room:'1T',roomUid:'room-1',sessionId:'session',startedAt:1000,amount:50000,method:'현금',at:1900}]
+  assert.equal(applyCheckout(state,{...request,paymentId:'another'}),undefined)
+})
+test('duplicate sale for same room start is rejected even without a session ID',()=>{
+  const state=store()
+  state.sessions=[]
+  state.payments=[{id:'earlier',room:'1T',roomUid:'room-1',sessionId:null,startedAt:1000,amount:50000,method:'현금',at:1900}]
+  assert.equal(applyCheckout(state,{...request,paymentId:'another'}),undefined)
+})
