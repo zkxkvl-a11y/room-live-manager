@@ -6,7 +6,7 @@ import { onValue, runTransaction, ref, set, remove } from 'firebase/database'
 import { auth, database, roomLiveRef, ADMIN_UID } from './firebase'
 
 import { seed, read, normalizeRemote, format, operatingDay, ledgerDay, date } from './store-model'
-import type { ObserverRoom, ObserverSnapshot, Attendance, Shop, Group, Room, Log, Visit, Session, Payment, Store } from './store-model'
+import type { ObserverRoom, ObserverSnapshot, Room, Log, Payment, Store } from './store-model'
 
 export default function App() {
   const [store, setStoreState] = useState<Store>(read)
