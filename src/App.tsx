@@ -176,7 +176,7 @@ export default function App() {
     readyRef.current=false
     setRemoteState('loading')
     if(v2Active){
-      if(!isAdmin){localStorage.removeItem('room-live-v1');localStorage.removeItem('room-live-precloud-backup-v1')}
+      // Preserve local backups during migration; never erase them on a feature-flag change.
       v2OperationsRef.current=null
       v2PaymentsRef.current=[]
       let financeLoaded=!isAdmin
@@ -353,7 +353,7 @@ export default function App() {
   }
   function saveCheckout() {
     if (!checkout || !payMethod) { alert('결제 수단을 선택해 주세요.'); return }
-    if (!/^\d+$/.test(payAmount.trim()) || !Number.isSafeInteger(Number(payAmount)) || Number(payAmount) <= 0) { alert('결제금액을 1원 이상의 숫자로 입력해 주세요.'); return }
+    if (!/^\d+$/.test(payAmount.trim()) || !Number.isSafeInteger(Number(payAmount)) || Number(payAmount) <= 0 || Number(payAmount) > 1000000000) { alert('결제금액을 1원 이상의 숫자로 입력해 주세요.'); return }
     if(!canOperate||!readyRef.current){alert('서버 연결 후 결제할 수 있습니다.');return}
     if(checkoutPendingRef.current)return
     checkoutPendingRef.current=true
