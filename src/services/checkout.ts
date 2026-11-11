@@ -28,6 +28,12 @@ export function applyCheckout(previous:Store,request:CheckoutRequest):Store|unde
   if(openSessions.length>1||(openSessions.length===1&&openSessions[0].started!==active.started))return
   if(previous.visits.some(v=>sameRoom(v)&&v.exited===null&&v.entered>at))return
   const session=openSessions[0]
+  // An already-paid session must never generate a second sale, even if a
+  // malformed or stale operations snapshot still shows its room as active.
+  if(session&&previous.payments.some(p=>p.sessionId===session.id))return
+  if(previous.payments.some(p=>
+    (p.roomUid??p.room)===roomUid&&p.startedAt===active.started
+  ))return
   const payment:Payment={
     id:paymentId,room:active.id,roomUid,at,startedAt:active.started,amount,method,
     sessionId:session?.id??null,manager,memo,wari,wt,groupId:active.groupId,
