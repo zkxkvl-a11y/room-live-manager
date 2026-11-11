@@ -153,8 +153,7 @@ export default function App() {
     if(!choice||!['observer','worker','admin'].includes(choice))return
     if(choice==='observer'){alert('옵저버 서버 조회 분리 전에는 승인할 수 없습니다. 다음 보안 패치에서 활성화됩니다.');return}
     if(choice==='admin'){alert('추가 관리자 서버 권한 분리 전에는 승인할 수 없습니다. 최초 관리자만 유지됩니다.');return}
-    alert('실무자 승인 기능은 결제·매출 데이터의 서버 경로 분리가 끝난 뒤 활성화됩니다. 기존 승인 계정은 유지됩니다.');return
-    catch(error){setRemoteError('직원 승인 실패: '+String(error))}
+    alert('실무자 승인은 서버 보안 분리 후 활성화됩니다.');return
   }
   async function changeStaffRole(uid:string){
     if(!isAdmin)return
