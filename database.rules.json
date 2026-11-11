@@ -113,7 +113,9 @@
       "workerView": {
         ".read": "auth != null && (auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2' || root.child('roomLiveAccess').child(auth.uid).val() === 'staff' || root.child('roomLiveAccess').child(auth.uid).val() === 'worker')",
         ".write": "auth != null && auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2'"
-      }
+      },
+      ".read": "auth != null && auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2'",
+      ".write": "auth != null && auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2'"
     }
   }
 }
