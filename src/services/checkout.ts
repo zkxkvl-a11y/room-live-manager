@@ -1,4 +1,4 @@
-import type { Log, Payment, Store } from './store-model'
+import type { Log, Payment, Store } from '../store-model'
 
 export type CheckoutRequest = {
   paymentId:string
