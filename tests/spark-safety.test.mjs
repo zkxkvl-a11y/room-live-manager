@@ -8,7 +8,7 @@ const firebase = JSON.parse(readFileSync(new URL('../firebase.json', import.meta
 
 test('client must not submit orphaned V2 checkout requests', () => {
   assert.doesNotMatch(app, /CHECKOUT_PATH|checkoutRequests\//)
-  assert.match(app, /V2 장부 전환이 아직 검증되지 않았습니다/)
+  assert.match(app, /직원 V2 마감은 아직 지원되지 않습니다/)
   assert.match(app, /runTransaction\(roomLiveRef,current=>/)
 })
 
@@ -49,4 +49,11 @@ test('operations root rejects unknown fields by default',()=>{
   for(const field of approved)assert.equal(operations[field]['.validate'],true)
   assert.equal(operations.payments,undefined)
   assert.equal(operations.finance,undefined)
+})
+
+test('V2 root transaction is administrator-only, finance stays private',()=>{
+  assert.equal(rules.roomLiveV2['.read'],rules.roomLive['.read'])
+  assert.equal(rules.roomLiveV2['.write'],rules.roomLive['.write'])
+  assert.doesNotMatch(rules.roomLiveV2['.read'],/roomLiveAccess|worker|staff/)
+  assert.match(app,/operations:toOperations\(next\),finance:/)
 })
