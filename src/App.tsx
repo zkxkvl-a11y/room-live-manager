@@ -62,11 +62,13 @@ export default function App() {
       try{
         const result=await runTransaction(ref(database,FINANCE_PATH),current=>{
           if(!current)return
-          const previous=normalizeRemote({...v2OperationsRef.current,payments:current.payments??[],logs:[...(current.auditLogs??[]),...(v2OperationsRef.current?.logs??[])]} as Store)
+          const existingAuditLogs=(Array.isArray(current.auditLogs)?current.auditLogs:Object.values(current.auditLogs??{})) as Log[]
+          const existingPayments=(Array.isArray(current.payments)?current.payments:Object.values(current.payments??{})) as Payment[]
+          const previous=normalizeRemote({...v2OperationsRef.current,payments:existingPayments,logs:[...existingAuditLogs,...(v2OperationsRef.current?.logs??[])]} as Store)
           const next=update(previous)
           const previousLogIds=new Set(previous.logs.map(log=>log.id))
           const addedAuditLogs=next.logs.filter(log=>!previousLogIds.has(log.id))
-          return {...current,payments:next.payments,auditLogs:[...addedAuditLogs,...(current.auditLogs??[])]}
+          return {...current,payments:next.payments,auditLogs:[...addedAuditLogs,...existingAuditLogs]}
         },{applyLocally:false})
         if(!result.committed)throw Error('장부 수정이 저장되지 않았습니다.')
       }catch(error){setRemoteError('장부 수정 실패: '+String(error))}
