@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import './App.css'
+import type { FormEvent } from 'react'
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut, type User } from 'firebase/auth'
+import { onValue, runTransaction } from 'firebase/database'
+import { auth, roomLiveRef, ADMIN_UID } from './firebase'
 
 type Attendance={id:string;name:string;working:boolean}
 type Shop = { id: string; name: string }
@@ -36,7 +40,31 @@ function read(): Store {
 const format = (ms: number) => { const n = Math.max(0, Math.ceil(ms / 1000)); return [Math.floor(n / 3600), Math.floor(n % 3600 / 60), n % 60].map(x => String(x).padStart(2, '0')).join(':') }
 const date = (n: number) => new Date(n).toLocaleString('ko-KR', { hour12: false })
 export default function App() {
-  const [store, setStore] = useState<Store>(read)
+  const [store, setStoreState] = useState<Store>(read)
+  const [account, setAccount] = useState<User|null>(null)
+  const [authLoading, setAuthLoading] = useState(true)
+  const [remoteState, setRemoteState] = useState<'loading'|'empty'|'ready'|'error'>('loading')
+  const [remoteError, setRemoteError] = useState('')
+  const [loginEmail, setLoginEmail] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
+  const [loginBusy, setLoginBusy] = useState(false)
+  const localInitial = useRef<Store>(read())
+  const readyRef = useRef(false)
+  const transactionQueue = useRef<Promise<unknown>>(Promise.resolve())
+  function setStore(update:Store|((previous:Store)=>Store)) {
+    if(!readyRef.current){alert('서버 데이터 연결이 완료된 후 수정할 수 있습니다.');return}
+    const operation=async()=>{
+      try {
+        const result=await runTransaction(roomLiveRef,current=>{
+          if(current===null)return
+          const previous=current as Store
+          return typeof update==='function'?update(previous):update
+        },{applyLocally:false})
+        if(!result.committed)throw Error('서버에 저장되지 않았습니다.')
+      }catch(error){setRemoteError('저장 실패: '+(error instanceof Error?error.message:String(error)))}
+    }
+    transactionQueue.current=transactionQueue.current.then(operation,operation)
+  }
   const [now, setNow] = useState(Date.now())
   const [page, setPage] = useState<'rooms' | 'attendance' | 'logs' | 'payments' | 'settings'>('rooms')
   const [detail, setDetail] = useState<string | null>(null)
@@ -66,7 +94,42 @@ export default function App() {
   const held = useRef(false)
   const tap = useRef<{ room: string; time: number } | null>(null)
   useEffect(() => { const interval = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(interval) }, [])
-  useEffect(() => { localStorage.setItem('room-live-v1', JSON.stringify(store)) }, [store])
+  useEffect(()=>{
+    return onAuthStateChanged(auth,user=>{
+      readyRef.current=false
+      setAccount(user)
+      setAuthLoading(false)
+      setRemoteState('loading')
+    })
+  },[])
+  useEffect(()=>{
+    if(!account||account.uid!==ADMIN_UID)return
+    setRemoteError('')
+    const unsubscribe=onValue(roomLiveRef,snapshot=>{
+      const data=snapshot.val() as Store|null
+      readyRef.current=Boolean(data)
+      if(data){setStoreState(data);setRemoteState('ready');localStorage.setItem('room-live-v1',JSON.stringify(data))}
+      else setRemoteState('empty')
+    },error=>{readyRef.current=false;setRemoteState('error');setRemoteError(error.message)})
+    return ()=>{readyRef.current=false;unsubscribe()}
+  },[account])
+  async function login(event:FormEvent<HTMLFormElement>){
+    event.preventDefault()
+    setRemoteError('')
+    setLoginBusy(true)
+    try{await signInWithEmailAndPassword(auth,loginEmail.trim(),loginPassword);setLoginPassword('')}
+    catch(error){setRemoteError('로그인 실패: '+(error instanceof Error?error.message:String(error)))}
+    finally{setLoginBusy(false)}
+  }
+  async function importLocal(){
+    if(!account||account.uid!==ADMIN_UID)return
+    if(!confirm('이 휴대폰의 기존 데이터를 최초 서버 데이터로 등록할까요? 서버에 데이터가 이미 있다면 덮어쓰지 않습니다.'))return
+    setRemoteError('')
+    try{
+      const result=await runTransaction(roomLiveRef,current=>current===null?localInitial.current:undefined,{applyLocally:false})
+      if(!result.committed)alert('서버에 이미 데이터가 존재합니다. 기존 데이터를 덮어쓰지 않았습니다.')
+    }catch(error){setRemoteError('최초 등록 실패: '+(error instanceof Error?error.message:String(error)))}
+  }
   const roomKey=(r:Room)=>r.uid??r.id
   const roomName=(uid:string)=>store.rooms.find(r=>roomKey(r)===uid)?.id??uid
   const record = (uid: string, action: string): Log => ({ id: crypto.randomUUID(), at: Date.now(), room:roomName(uid), roomUid:uid, action })
@@ -146,6 +209,10 @@ export default function App() {
     else { tap.current = { room: id, time: t }; setTimeout(() => { if (tap.current?.room === id && tap.current.time === t) { tap.current = null; setDetail(id) } }, 360) }
   }
   const selected = store.rooms.find(r => roomKey(r) === detail)
+  if(authLoading)return <div className="cloud-gate"><h1>ROOM LIVE</h1><p>로그인 상태 확인 중...</p></div>
+  if(!account)return <div className="cloud-gate"><h1>ROOM LIVE</h1><p>Firebase 관리자 로그인</p><form onSubmit={login}><label>이메일<input type="email" autoComplete="username" required value={loginEmail} onChange={e=>setLoginEmail(e.target.value)}/></label><label>비밀번호<input type="password" autoComplete="current-password" required value={loginPassword} onChange={e=>setLoginPassword(e.target.value)}/></label><button disabled={loginBusy} type="submit">{loginBusy?'로그인 중...':'로그인'}</button></form>{remoteError&&<p role="alert" className="cloud-error">{remoteError}</p>}</div>
+  if(account.uid!==ADMIN_UID)return <div className="cloud-gate"><h1>ROOM LIVE</h1><p>승인되지 않은 계정입니다. 현재는 관리자만 접근할 수 있습니다.</p><button onClick={()=>signOut(auth)}>로그아웃</button></div>
+  if(remoteState!=='ready')return <div className="cloud-gate"><h1>ROOM LIVE</h1><p>{remoteState==='empty'?'서버 데이터가 아직 없습니다.':remoteState==='error'?'서버 연결에 실패했습니다.':'실시간 서버 데이터 연결 중...'}</p>{remoteState==='empty'&&<><p>최초 한 번만 이 휴대폰의 기존 데이터를 서버에 등록합니다. 다른 휴대폰에서는 이 버튼을 누르지 마세요.</p><button onClick={importLocal}>이 휴대폰 데이터로 서버 시작</button></>}{remoteError&&<p role="alert" className="cloud-error">{remoteError}</p>}<button onClick={()=>signOut(auth)}>로그아웃</button></div>
   return <div className="app">
     <header><div><span className="kicker">ROOM LIVE · v0.4.2</span><h1>룸 라이브</h1><p>방 · 태그 · 시간 통합 관리</p></div><span className="status">● 로컬 테스트</span></header>
     {page === 'rooms' && <main>
@@ -205,6 +272,7 @@ export default function App() {
     {page==='payments'&&<main><h2>결제 현황</h2><div className="shop-tabs"><button className={payShopTab==='all'?'active':''} onClick={()=>{setPayShopTab('all');setPayGroup('all')}}>전체</button>{shops.map(sh=><button key={sh.id} className={payShopTab===sh.id?'active':''} onClick={()=>{setPayShopTab(sh.id);setPayGroup('all')}}>{sh.name}</button>)}</div><div className="filters"><input type="date" value={payDay} onChange={e=>setPayDay(e.target.value)}/><button onClick={()=>setPayDay('')}>전체 날짜</button><select value={payGroup} onChange={e=>setPayGroup(e.target.value)}><option value="all">전체 묶음</option>{groups.filter(g=>payShopTab==='all'||g.shopId===payShopTab).map(g=><option key={g.id} value={g.id}>{g.name}</option>)}</select></div>
       {(()=>{const items=(store.payments??[]).filter(p=>(payShopTab==='all'||p.shopId===payShopTab)&&(payGroup==='all'||p.groupId===payGroup)&&(!payDay||new Date(p.at).toLocaleDateString('sv-SE')===payDay));const paid=items.filter(p=>p.method!=='미수').reduce((n,p)=>n+p.amount,0),due=items.filter(p=>p.method==='미수').reduce((n,p)=>n+p.amount,0);return <><div className="payment-summary"><div><small>수금 합계</small><strong>{paid.toLocaleString('ko-KR')}원</strong></div><div><small>미수 합계</small><strong>{due.toLocaleString('ko-KR')}원</strong></div></div><h3>묶음별 결제</h3>{groups.filter(g=>payShopTab==='all'||g.shopId===payShopTab).filter(g=>payGroup==='all'||g.id===payGroup).map(g=>{const rows=items.filter(p=>p.groupId===g.id);return <button className="group-payment" key={g.id} onClick={()=>setPayGroup(g.id)}><b>{shops.find(x=>x.id===g.shopId)?.name} · {g.name}</b><span>수금 {rows.filter(p=>p.method!=='미수').reduce((n,p)=>n+p.amount,0).toLocaleString('ko-KR')}원</span><span>미수 {rows.filter(p=>p.method==='미수').reduce((n,p)=>n+p.amount,0).toLocaleString('ko-KR')}원</span></button>})}<div className="section"><h3>결제 내역 · 특이사항</h3><label className="memo-filter"><input type="checkbox" checked={memoOnly} onChange={e=>setMemoOnly(e.target.checked)}/> 비고만</label></div>{items.filter(p=>!memoOnly||Boolean(p.memo?.trim())).map(p=><div className="payment-entry" key={p.id}><strong>{p.room} · {p.method} · {p.amount.toLocaleString('ko-KR')}원</strong><small>{shops.find(x=>x.id===p.shopId)?.name} / {groups.find(g=>g.id===p.groupId)?.name} · {date(p.at)}</small>{p.manager&&<small>담당: {p.manager}</small>}{p.wari&&<small>와리: {p.wari}</small>}{p.wt&&<small>WT: {p.wt}</small>}{p.memo&&<p>비고: {p.memo}</p>}</div>)}{items.length===0&&<p className="hint">해당 기간의 결제 기록이 없습니다.</p>}</>})()}</main>}
     {page==='settings'&&<main><h2>설정</h2><h3>결제 입력 항목</h3><label className="setting-row"><span>와리 표시</span><input type="checkbox" checked={store.showWari!==false} onChange={e=>setStore(v=>({...v,showWari:e.target.checked}))}/></label><label className="setting-row"><span>WT 표시</span><input type="checkbox" checked={store.showWt!==false} onChange={e=>setStore(v=>({...v,showWt:e.target.checked}))}/></label><h3>가게 관리</h3>{shops.map(sh=><div className="manage-row" key={sh.id}><b>{sh.name}</b><button onClick={()=>renameShop(sh.id)}>이름 변경</button></div>)}<button className="manage-add" onClick={()=>{const name=prompt('추가할 가게 이름')?.trim();if(name){if(shops.some(x=>x.name.toLocaleLowerCase()===name.toLocaleLowerCase())){alert('이미 등록된 가게 이름입니다.');return}setStore(v=>({...v,shops:[...(v.shops??[]),{id:crypto.randomUUID(),name}]}))}}}>+ 가게 추가</button><h3>방 묶음 관리</h3>{groups.map(g=><div className="manage-row" key={g.id}><div><b>{g.name}</b><small>{shops.find(sh=>sh.id===g.shopId)?.name}</small></div><button onClick={()=>{const name=prompt('묶음 이름',g.name)?.trim();if(name)setStore(v=>({...v,groups:(v.groups??[]).map(x=>x.id===g.id?{...x,name}:x)}))}}>이름</button><button onClick={()=>{if(store.rooms.some(r=>r.groupId===g.id)){alert('방이 있는 묶음은 삭제할 수 없습니다.');return}if(confirm(g.name+' 삭제할까요?'))setStore(v=>({...v,groups:(v.groups??[]).filter(x=>x.id!==g.id)}))}}>삭제</button></div>)}<button className="manage-add" onClick={()=>{const name=prompt('새 묶음 이름')?.trim();if(!name)return;const sh=prompt('소속 가게 이름',shops[0]?.name);const target=shops.find(x=>x.name===sh);if(!target){alert('등록된 가게 이름을 입력해 주세요.');return}setStore(v=>({...v,groups:[...(v.groups??[]),{id:crypto.randomUUID(),shopId:target.id,name,layout:[]}]}))}}>+ 묶음 추가</button><p className="hint">이 버전은 현재 브라우저에만 저장됩니다. 두 가게 기기 간 실시간 공유는 아직 지원하지 않습니다.</p><button className="danger" onClick={()=>{if(confirm('모든 테스트 기록을 삭제할까요?'))setStore(seed)}}>테스트 기록 초기화</button></main>}
+    {remoteError&&<div className="cloud-error" role="alert" onClick={()=>setRemoteError('')}>{remoteError} · 눌러 닫기</div>}
     <nav className="nav-five"><button className={page === 'rooms' ? 'on' : ''} onClick={() => setPage('rooms')}>▦<span>방 현황</span></button><button className={page === 'attendance' ? 'on' : ''} onClick={() => setPage('attendance')}>♙<span>출근부</span></button><button className={page === 'logs' ? 'on' : ''} onClick={() => setPage('logs')}>◷<span>진행 기록</span></button><button className={page === 'payments' ? 'on' : ''} onClick={() => setPage('payments')}>₩<span>결제</span></button><button className={page === 'settings' ? 'on' : ''} onClick={() => setPage('settings')}>⚙<span>설정</span></button></nav>
     {newRoomGroup&&<div className="overlay" onClick={()=>setNewRoomGroup(null)}><section className="modal" onClick={e=>e.stopPropagation()}><h2>방 추가</h2><p className="hint">{shops.find(sh=>sh.id===groups.find(g=>g.id===newRoomGroup)?.shopId)?.name} · {groups.find(g=>g.id===newRoomGroup)?.name}</p><label className="amount-label">방 이름<input autoFocus value={newRoomName} onChange={e=>{setNewRoomName(e.target.value.toUpperCase());setRoomError('')}} placeholder="예: 1T" maxLength={40}/></label>{roomError&&<p className="form-error">{roomError}</p>}<div className="buttons"><button onClick={()=>setNewRoomGroup(null)}>취소</button><button onClick={()=>{const name=newRoomName.trim().toUpperCase();const g=groups.find(x=>x.id===newRoomGroup);if(!name||!g){setRoomError('방 이름을 입력해 주세요.');return}if(duplicated(name,g.shopId)){setRoomError('같은 가게에 이미 등록된 방 이름입니다. 다른 이름을 입력해 주세요.');return}setStore(v=>({...v,rooms:[...v.rooms,{uid:crypto.randomUUID(),id:name,groupId:g.id,started:null,ends:null,tags:[]}]}));setNewRoomGroup(null);setNewRoomName('');setRoomError('')}}>방 추가 완료</button></div></section></div>}
     {selected && <div className="overlay" onClick={() => setDetail(null)}><section className="modal" onClick={e => e.stopPropagation()}><div className="section"><h2>{selected.id} 상세</h2><button onClick={() => setDetail(null)}>닫기</button></div><div className="large-time">{selected.ends ? format(selected.ends - now) : '대기 중'}</div><p className="hint">{selected.started ? `시작: ${date(selected.started)}` : '시작 전'}</p><div className="buttons"><button onClick={() => selected.ends ? changeTime(roomKey(selected), 60) : start(roomKey(selected))}>{selected.ends ? '+1시간' : '60분 시작'}</button><button onClick={() => { setAdjust(roomKey(selected)); setDetail(null) }}>시간 조절</button>{selected.started && <button className="checkout-open" onClick={() => { openCheckout(roomKey(selected)) }}>마무리 (결제)</button>}</div><h3>배치된 인원</h3>{selected.tags.map(tag => <div className="tag-row" key={tag}><span>{helperName(tag)}<small>{(() => { const v = store.visits.find(x => x.tag === tag && x.exited === null && sameRoom(x,roomKey(selected))); return v ? ` · 입실 ${date(v.entered)} · ${Math.floor((now - v.entered)/60000)}분 경과` : '' })()}</small></span><button onClick={() => place(tag, null)}>퇴실</button></div>)}{!selected.tags.length && <p className="hint">태그 없음</p>}</section></div>}
