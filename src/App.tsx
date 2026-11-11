@@ -155,15 +155,49 @@ export default function App() {
   useEffect(()=>{
     if(!account||role==='pending'||role==='observer')return
     setRemoteError('')
+    readyRef.current=false
+    setRemoteState('loading')
+    if(v2Active){
+      v2OperationsRef.current=null
+      v2PaymentsRef.current=[]
+      let financeLoaded=!isAdmin
+      const refresh=()=>{
+        if(!v2OperationsRef.current||!financeLoaded)return
+        const data=mergeSplit(v2OperationsRef.current,isAdmin?{payments:v2PaymentsRef.current}:null)
+        if(!data)return
+        readyRef.current=true
+        setStoreState(normalizeRemote(data))
+        setRemoteState('ready')
+      }
+      const unsubOps=onValue(ref(database,OPERATIONS_PATH),snapshot=>{
+        const raw=snapshot.val()
+        v2OperationsRef.current=raw?normalizeRemote({...raw,payments:[]} as Store):null
+        if(!raw){readyRef.current=false;setRemoteState('empty')}
+        else refresh()
+      },error=>{readyRef.current=false;setRemoteState('error');setRemoteError('운영 데이터 조회 실패: '+error.message)})
+      const unsubFinance=isAdmin?onValue(ref(database,FINANCE_PATH),snapshot=>{
+        const value=snapshot.val()
+        v2PaymentsRef.current=(Array.isArray(value?.payments)?value.payments:Object.values(value?.payments??{})) as Payment[]
+        financeLoaded=true
+        refresh()
+      },error=>{readyRef.current=false;setRemoteState('error');setRemoteError('장부 조회 실패: '+error.message)}):()=>{}
+      return ()=>{readyRef.current=false;unsubOps();unsubFinance()}
+    }
     const unsubscribe=onValue(roomLiveRef,snapshot=>{
       const raw=snapshot.val() as Store|null
       const data=raw?normalizeRemote(raw):null
       readyRef.current=Boolean(data)
-      if(data){if(!localStorage.getItem('room-live-precloud-backup-v1')){const previous=localStorage.getItem('room-live-v1');if(previous)localStorage.setItem('room-live-precloud-backup-v1',previous)}setStoreState(data);setRemoteState('ready');localStorage.setItem('room-live-v1',JSON.stringify(data))}
-      else setRemoteState('empty')
+      if(data){
+        if(!localStorage.getItem('room-live-precloud-backup-v1')){
+          const previous=localStorage.getItem('room-live-v1')
+          if(previous)localStorage.setItem('room-live-precloud-backup-v1',previous)
+        }
+        setStoreState(data);setRemoteState('ready')
+        if(isAdmin)localStorage.setItem('room-live-v1',JSON.stringify(data))
+      }else setRemoteState('empty')
     },error=>{readyRef.current=false;setRemoteState('error');setRemoteError(error.message)})
     return ()=>{readyRef.current=false;unsubscribe()}
-  },[account,role])
+  },[account,role,v2Active,isAdmin])
   useEffect(()=>{
     if(!account||isAdmin)return
     const unsub=onValue(ref(database,'roomLiveAccess/'+account.uid),snapshot=>{
