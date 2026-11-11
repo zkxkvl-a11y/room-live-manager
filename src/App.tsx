@@ -8,7 +8,7 @@ import { auth, database, roomLiveRef, ADMIN_UID } from './firebase'
 import { seed, read, normalizeRemote, format, operatingDay, ledgerDay, date } from './store-model'
 import { workerViewOf } from './worker-view'
 import { applyCheckout } from './services/checkout'
-import { OPERATIONS_PATH, FINANCE_PATH, CHECKOUT_PATH, toOperations, mergeSplit } from './services/split-store'
+import { OPERATIONS_PATH, FINANCE_PATH, toOperations, mergeSplit } from './services/split-store'
 import type { ObserverRoom, ObserverSnapshot, Room, Log, Payment, Store } from './store-model'
 
 export default function App() {
@@ -362,27 +362,11 @@ export default function App() {
     const manager=payManager.trim(), memo=payMemo.trim(), wari=payWari.trim(), wt=payWt.trim()
     const paymentId=crypto.randomUUID()
     if(v2Active){
-      const operation=async()=>{
-        try{
-          if(!account||auth.currentUser?.uid!==account.uid)throw Error('로그인 상태가 변경되었습니다.')
-          const requestRef=ref(database,CHECKOUT_PATH+'/'+paymentId)
-          await set(requestRef,{id:paymentId,uid:account.uid,roomUid,amount,method,at,manager,memo,wari,wt})
-          const {get}=await import('firebase/database')
-          let status='pending'
-          for(let attempt=0;attempt<30;attempt++){
-            await new Promise(resolve=>setTimeout(resolve,500))
-            const snapshot=await get(requestRef)
-            status=snapshot.child('status').val()??'pending'
-            if(status==='completed'||status==='rejected')break
-          }
-          if(status==='completed'){
-            setCheckout(null);setDetail(null);setPayMethod(null);setPayAmount('');setPayManager('');setPayMemo('')
-          }else if(status==='rejected')alert('서버에서 결제를 거절했습니다. 방 상태와 권한을 확인하세요.')
-          else alert('결제 요청을 제출했습니다. 처리 결과를 확인한 뒤 다시 시도하세요.')
-        }catch(error){setRemoteError('결제 요청 실패: '+String(error));alert('결제 요청 실패. 저장 여부를 확인한 뒤 다시 시도하세요.')}
-        finally{checkoutPendingRef.current=false;setCheckoutSaving(false)}
-      }
-      transactionQueue.current=transactionQueue.current.then(operation,operation)
+      // V2 previously waited for a Cloud Function that is not deployed on Spark.
+      // Fail closed rather than accepting an unprocessed ledger request.
+      checkoutPendingRef.current=false
+      setCheckoutSaving(false)
+      alert('V2 장부 전환이 아직 검증되지 않았습니다. 관리자에게 문의하세요. 방 마감 및 매출 기록은 저장되지 않았습니다.')
       return
     }
     const operation=async()=>{
