@@ -80,3 +80,14 @@
 .attendance-edit{width:100%;margin-top:7px;font-size:12px}
 .selection-bar{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px;border:1px solid #3a95c7;border-radius:10px;margin:8px 0 14px}
 .tag-list .picked{border:2px solid #35bcd3!important;background:#17495a!important}
+
+/* Firebase login and safe first-run gate */
+.cloud-gate{max-width:440px;margin:9vh auto 0;padding:24px;display:flex;flex-direction:column;gap:18px;min-height:40vh}
+.cloud-gate h1{font-size:28px}
+.cloud-gate p{color:#b6c5dc;line-height:1.6}
+.cloud-gate form{display:flex;flex-direction:column;gap:14px}
+.cloud-gate label{display:flex;flex-direction:column;gap:7px;color:#d8e5f7}
+.cloud-gate input{width:100%;min-height:46px;background:#1d2940;color:#fff;border:1px solid #546784;border-radius:9px;padding:12px;font-size:16px}
+.cloud-gate button{background:#3178e6;color:white;border-radius:10px;padding:13px;font-weight:600}
+.cloud-gate button:disabled{opacity:.55}
+.cloud-error{padding:12px;background:#582a36;color:#fff;border-radius:8px;margin:8px 12px;font-size:13px;overflow-wrap:anywhere}
