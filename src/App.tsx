@@ -232,21 +232,21 @@ export default function App() {
   },[isAdmin])
   async function addStaff(){
     if(!isAdmin)return
-    const uid=prompt('Firebase Authentication 사용자 UID 입력 (28자)')?.trim()
+    if(!v2Active){alert('V2 보안 전환 후 직원 승인이 가능합니다.');return}
+    const uid=prompt('Firebase Authentication 사용자 UID 입력')?.trim()
     if(!uid)return
     if(!/^[a-zA-Z0-9]{20,128}$/.test(uid)||uid===ADMIN_UID){alert('UID 형식을 확인해 주세요.');return}
-    const choice=prompt('권한 입력: observer (현황 옵저버), worker (실무자), admin (관리자)','worker')?.trim()
-    if(!choice||!['observer','worker','admin'].includes(choice))return
-    if(choice==='observer'){alert('옵저버 서버 조회 분리 전에는 승인할 수 없습니다. 다음 보안 패치에서 활성화됩니다.');return}
-    if(choice==='admin'){alert('추가 관리자 서버 권한 분리 전에는 승인할 수 없습니다. 최초 관리자만 유지됩니다.');return}
-    alert('실무자 승인은 서버 보안 분리 후 활성화됩니다.');return
+    const choice=prompt('권한: worker (실무자) / observer (현황 조회)','worker')?.trim()
+    if(choice!=='worker'&&choice!=='observer')return
+    try{await set(ref(database,'roomLiveAccess/'+uid),choice)}
+    catch(error){setRemoteError('직원 승인 실패: '+String(error))}
   }
   async function changeStaffRole(uid:string){
-    if(!isAdmin)return
-    const choice=prompt('변경할 권한 (worker / observer / admin)',approvedStaff[uid]??'worker')?.trim()
-    if(!choice||!['worker','observer','admin'].includes(choice))return
-    if(choice!=='worker'){alert('옵저버와 추가 관리자 권한은 서버 보안 분리 후 활성화할 수 있습니다.');return}
-    alert('권한 변경은 서버 데이터 경로별 보안 규칙 분리 후 활성화됩니다.');return
+    if(!isAdmin||!v2Active)return
+    const choice=prompt('권한: worker / observer',approvedStaff[uid]??'worker')?.trim()
+    if(choice!=='worker'&&choice!=='observer')return
+    try{await set(ref(database,'roomLiveAccess/'+uid),choice)}
+    catch(error){setRemoteError('권한 변경 실패: '+String(error))}
   }
   async function revokeStaff(uid:string){
     if(!isAdmin||!confirm('이 직원의 서버 접근 권한을 해제할까요?'))return
