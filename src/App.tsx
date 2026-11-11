@@ -370,20 +370,34 @@ export default function App() {
     const roomUid=checkout, method=payMethod, amount=Number(payAmount), at=Date.now()
     const manager=payManager.trim(), memo=payMemo.trim(), wari=payWari.trim(), wt=payWt.trim()
     const paymentId=crypto.randomUUID()
-    if(v2Active){
-      // V2 previously waited for a Cloud Function that is not deployed on Spark.
-      // Fail closed rather than accepting an unprocessed ledger request.
+    if(v2Active&&!isAdmin){
+      // Workers cannot transact on a parent that contains administrator-only finance.
+      // Never write a partial checkout or silently queue an unprocessed request.
       checkoutPendingRef.current=false
       setCheckoutSaving(false)
-      alert('V2 장부 전환이 아직 검증되지 않았습니다. 관리자에게 문의하세요. 방 마감 및 매출 기록은 저장되지 않았습니다.')
+      alert('직원 V2 마감은 아직 지원되지 않습니다. 관리자에게 마감을 요청하세요. 장부나 방 상태는 변경되지 않았습니다.')
       return
     }
     const operation=async()=>{
       try{
-        const result=await runTransaction(roomLiveRef,current=>{
+        const result=await runTransaction(v2Active?ref(database,'roomLiveV2'):roomLiveRef,current=>{
           if(current===null)return
-          const previous=normalizeRemote(current as Store)
-          return applyCheckout(previous,{paymentId,roomUid,method,amount,at,manager,memo,wari,wt})
+          const request={paymentId,roomUid,method,amount,at,manager,memo,wari,wt}
+          if(!v2Active){
+            return applyCheckout(normalizeRemote(current as Store),request)
+          }
+          const root=current as {
+            operations?:Partial<Store>
+            finance?:{payments?:Payment[]|Record<string,Payment>;auditLogs?:Log[]|Record<string,Log>}
+            [key:string]:unknown
+          }
+          if(!root.operations)return
+          const finance=root.finance??{}
+          const payments=(Array.isArray(finance.payments)?finance.payments:Object.values(finance.payments??{})) as Payment[]
+          const previous=normalizeRemote({...root.operations,payments} as Store)
+          const next=applyCheckout(previous,request)
+          if(!next)return
+          return {...root,operations:toOperations(next),finance:{...finance,payments:next.payments}}
         },{applyLocally:false})
         if(!result.committed){alert('이미 마감됐거나 다른 사용자가 방 상태를 변경했습니다. 최신 상태를 확인해 주세요.');return}
         setCheckout(null);setDetail(null);setPayMethod(null);setPayAmount('');setPayManager('');setPayMemo('')
