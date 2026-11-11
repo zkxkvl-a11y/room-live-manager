@@ -24,8 +24,12 @@ function read(): Store {
     const migrated = groups.map((g,i)=>({...g,layout:(g.layout?.length ? g.layout : i===0 ? layout : []).map(key=>key===null?null:rooms.find(r=>r.uid===key&&r.groupId===g.id)?.uid??rooms.find(r=>r.id===key&&r.groupId===g.id)?.uid??null)}))
     const enrich = <T extends {room:string;roomUid?:string},>(items:T[])=>items.map(x=>({...x,roomUid:x.roomUid??byName(x.room)?.uid}))
     const payments = (old.payments??[]).map(p=>({...p,roomUid:p.roomUid??byName(p.room)?.uid,groupId:p.groupId??byName(p.room)?.groupId??groups[0].id,shopId:p.shopId??groups.find(g=>g.id===(byName(p.room)?.groupId??groups[0].id))?.shopId??shops[0].id}))
-    const attendance=old.attendance??(old.tags??seed.tags).map(name=>({id:crypto.randomUUID(),name,working:false}))
-    return {...seed,...old,rooms,shops,groups:migrated,payments,logs:enrich(old.logs??[]),visits:enrich(old.visits??[]),sessions:enrich(old.sessions??[]),attendance}
+    const legacyNames=[...new Set([...(old.tags??seed.tags),...rooms.flatMap(r=>r.tags),...(old.visits??[]).map(v=>v.tag)])]
+    const attendance=old.attendance??legacyNames.map(name=>({id:crypto.randomUUID(),name,working:rooms.some(r=>r.tags.includes(name))}))
+    const helperId=(tag:string)=>attendance.find(h=>h.id===tag||h.name===tag)?.id??tag
+    const mappedRooms=rooms.map(r=>({...r,tags:r.tags.map(helperId)}))
+    const mappedVisits=enrich(old.visits??[]).map(v=>({...v,tag:helperId(v.tag)}))
+    return {...seed,...old,rooms:mappedRooms,shops,groups:migrated,payments,logs:enrich(old.logs??[]),visits:mappedVisits,sessions:enrich(old.sessions??[]),attendance}
 
   } catch { return seed }
 }
