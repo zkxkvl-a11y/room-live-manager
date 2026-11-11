@@ -116,7 +116,7 @@ export default function App() {
     {page === 'rooms' && <main>
       <div className="section"><h2>방 현황 <small>{store.rooms.length}개</small></h2><button onClick={() => { setEditing(!editing); setMoving(null); setChosen(null) }}>{editing ? '편집 완료' : '배치 편집'}</button></div>
       <div className="shop-tabs"><button className={shopTab==='all'?'active':''} onClick={()=>setShopTab('all')}>전체</button>{shops.map(sh=><button key={sh.id} className={shopTab===sh.id?'active':''} onClick={()=>setShopTab(sh.id)}>{sh.name}</button>)}</div>
-      {shops.filter(sh=>shopTab==='all'||sh.id===shopTab).map(sh=><div className="shop-section" key={sh.id}><div className="shop-divider"><span>{sh.name}</span></div>{groups.filter(g=>g.shopId===sh.id).map(g=>{
+      {shops.filter(sh=>shopTab==='all'||sh.id===shopTab).map(sh=><div className="shop-section" key={sh.id}><div className="shop-divider"><span>{sh.name}</span></div>{editing&&<button className="manage-add" onClick={()=>{const name=prompt(sh.name+' 새 묶음 이름')?.trim();if(!name)return;if(groups.some(g=>g.shopId===sh.id&&g.name.toLocaleLowerCase()===name.toLocaleLowerCase())){alert('같은 가게에 이미 있는 묶음 이름입니다.');return}setStore(v=>({...v,groups:[...(v.groups??[]),{id:crypto.randomUUID(),shopId:sh.id,name,layout:[]}]}))}}>+ {sh.name} 묶음 추가</button>}{groups.filter(g=>g.shopId===sh.id).map(g=>{
         const groupRooms=store.rooms.filter(r=>r.groupId===g.id)
         const used=new Set(g.layout.filter((id):id is string=>id!==null))
         const positions=[...g.layout.filter(id=>id===null||groupRooms.some(r=>roomKey(r)===id)),...groupRooms.map(r=>roomKey(r)).filter(id=>!used.has(id))]
