@@ -176,6 +176,7 @@ export default function App() {
     readyRef.current=false
     setRemoteState('loading')
     if(v2Active){
+      if(!isAdmin){localStorage.removeItem('room-live-v1');localStorage.removeItem('room-live-precloud-backup-v1')}
       v2OperationsRef.current=null
       v2PaymentsRef.current=[]
       let financeLoaded=!isAdmin
