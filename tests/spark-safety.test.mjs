@@ -9,7 +9,7 @@ const firebase = JSON.parse(readFileSync(new URL('../firebase.json', import.meta
 test('client must not submit orphaned V2 checkout requests', () => {
   assert.doesNotMatch(app, /CHECKOUT_PATH|checkoutRequests\//)
   assert.match(app, /직원 V2 마감은 아직 지원되지 않습니다/)
-  assert.match(app, /runTransaction\(roomLiveRef,current=>/)
+  assert.match(app, /runTransaction\(v2Active\?ref\(database,'roomLiveV2'\):roomLiveRef,current=>/)
 })
 
 test('Functions deployment is absent from Spark configuration', () => {
