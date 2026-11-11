@@ -32,6 +32,16 @@
       "workerView": {
         ".read": "auth != null && (auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2' || root.child('roomLiveAccess').child(auth.uid).val() === 'staff' || root.child('roomLiveAccess').child(auth.uid).val() === 'worker')",
         ".write": "auth != null && auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2'"
+      },
+      "paymentSubmissions": {
+        ".read": "auth != null && auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2'",
+        "$submissionId": {
+          ".write": "auth != null && !data.exists() && newData.exists() && (auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2' || root.child('roomLiveAccess').child(auth.uid).val() === 'worker' || root.child('roomLiveAccess').child(auth.uid).val() === 'staff')",
+          ".validate": "newData.hasChildren(['id','uid','roomUid','amount','method','at']) && newData.child('id').val() === $submissionId && newData.child('uid').val() === auth.uid && newData.child('roomUid').isString() && newData.child('roomUid').val().length <= 128 && newData.child('amount').isNumber() && newData.child('amount').val() > 0 && newData.child('amount').val() <= 1000000000 && newData.child('method').isString() && (newData.child('method').val() === '현금' || newData.child('method').val() === '카드' || newData.child('method').val() === '이체' || newData.child('method').val() === '미수') && newData.child('at').isNumber()",
+          "$other": {
+            ".validate": false
+          }
+        }
       }
     }
   }
