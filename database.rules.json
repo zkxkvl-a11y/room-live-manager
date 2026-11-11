@@ -1,0 +1,53 @@
+{
+  "rules": {
+    "roomLive": {
+      ".read": "auth != null && auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2'",
+      ".write": "auth != null && auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2'"
+    },
+    "roomLiveObserver": {
+      ".read": "auth != null && (auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2' || root.child('roomLiveAccess').child(auth.uid).val() === 'observer')",
+      ".write": "auth != null && auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2'"
+    },
+    "roomLiveAccess": {
+      ".read": "auth != null && auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2'",
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2'",
+        ".validate": "newData.val() === 'staff' || newData.val() === 'worker' || newData.val() === 'observer'"
+      }
+    },
+    "roomLiveLedgerMigration": {
+      ".read": "auth != null && auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2'",
+      ".write": "auth != null && auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2'"
+    },
+    "roomLiveV2": {
+      "config": {
+        ".read": "auth != null && (auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2' || root.child('roomLiveAccess').child(auth.uid).val() === 'staff' || root.child('roomLiveAccess').child(auth.uid).val() === 'worker')",
+        ".write": "auth != null && auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2'"
+      },
+      "operations": {
+        ".read": "auth != null && (auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2' || root.child('roomLiveAccess').child(auth.uid).val() === 'staff' || root.child('roomLiveAccess').child(auth.uid).val() === 'worker')",
+        ".write": "auth != null && (auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2' || root.child('roomLiveAccess').child(auth.uid).val() === 'staff' || root.child('roomLiveAccess').child(auth.uid).val() === 'worker')",
+        ".validate": "newData.hasChildren(['rooms','tags']) && !newData.hasChild('payments') && !newData.hasChild('finance') && !newData.hasChild('checkoutRequests')"
+      },
+      "finance": {
+        ".read": "auth != null && auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2'",
+        ".write": "auth != null && auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2'"
+      },
+      "checkoutRequests": {
+        "$requestId": {
+          ".read": "auth != null && (auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2' || data.child('uid').val() === auth.uid)",
+          ".write": "auth != null && !data.exists() && newData.exists() && (auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2' || root.child('roomLiveAccess').child(auth.uid).val() === 'worker' || root.child('roomLiveAccess').child(auth.uid).val() === 'staff')",
+          ".validate": "newData.hasChildren(['id','uid','roomUid','amount','method','at']) && newData.child('id').val() === $requestId && newData.child('uid').val() === auth.uid && newData.child('roomUid').isString() && newData.child('roomUid').val().length > 0 && newData.child('roomUid').val().length <= 128 && newData.child('amount').isNumber() && newData.child('amount').val() > 0 && newData.child('amount').val() <= 1000000000 && newData.child('method').isString() && (newData.child('method').val() === '현금' || newData.child('method').val() === '카드' || newData.child('method').val() === '이체' || newData.child('method').val() === '미수') && newData.child('at').isNumber() && newData.child('at').val() <= now + 300000 && newData.child('at').val() >= now - 86400000 && !newData.hasChild('status')",
+          "$other": {
+            ".validate": false
+          }
+        }
+      },
+      "workerView": {
+        ".read": "auth != null && (auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2' || root.child('roomLiveAccess').child(auth.uid).val() === 'staff' || root.child('roomLiveAccess').child(auth.uid).val() === 'worker')",
+        ".write": "auth != null && auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2'"
+      }
+    }
+  }
+}
