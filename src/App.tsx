@@ -37,6 +37,15 @@ function read(): Store {
 
   } catch { return seed }
 }
+// Realtime Database omits empty arrays and null-only fields; restore the UI's array contract.
+function normalizeRemote(raw: Store): Store {
+  const array = <T,>(value:unknown):T[] =>
+    Array.isArray(value) ? value as T[] :
+    value && typeof value==='object' ? Object.values(value) as T[] : []
+  const rooms=array<Room>(raw.rooms).map(r=>({...r,tags:array<string>(r.tags),started:r.started??null,ends:r.ends??null}))
+  const groups=array<Group>(raw.groups).map(g=>({...g,layout:Array.isArray(g.layout)?g.layout:[]}))
+  return {...seed,...raw,rooms,tags:array<string>(raw.tags),attendance:array<Attendance>(raw.attendance),logs:array<Log>(raw.logs),visits:array<Visit>(raw.visits),sessions:array<Session>(raw.sessions),payments:array<Payment>(raw.payments),shops:array<Shop>(raw.shops),groups}
+}
 const format = (ms: number) => { const n = Math.max(0, Math.ceil(ms / 1000)); return [Math.floor(n / 3600), Math.floor(n % 3600 / 60), n % 60].map(x => String(x).padStart(2, '0')).join(':') }
 const date = (n: number) => new Date(n).toLocaleString('ko-KR', { hour12: false })
 export default function App() {
@@ -57,7 +66,7 @@ export default function App() {
       try {
         const result=await runTransaction(roomLiveRef,current=>{
           if(current===null)return
-          const previous=current as Store
+          const previous=normalizeRemote(current as Store)
           return typeof update==='function'?update(previous):update
         },{applyLocally:false})
         if(!result.committed)throw Error('서버에 저장되지 않았습니다.')
@@ -106,7 +115,8 @@ export default function App() {
     if(!account||account.uid!==ADMIN_UID)return
     setRemoteError('')
     const unsubscribe=onValue(roomLiveRef,snapshot=>{
-      const data=snapshot.val() as Store|null
+      const raw=snapshot.val() as Store|null
+      const data=raw?normalizeRemote(raw):null
       readyRef.current=Boolean(data)
       if(data){if(!localStorage.getItem('room-live-precloud-backup-v1')){const previous=localStorage.getItem('room-live-v1');if(previous)localStorage.setItem('room-live-precloud-backup-v1',previous)}setStoreState(data);setRemoteState('ready');localStorage.setItem('room-live-v1',JSON.stringify(data))}
       else setRemoteState('empty')
@@ -126,7 +136,7 @@ export default function App() {
     if(!confirm('이 휴대폰의 기존 데이터를 최초 서버 데이터로 등록할까요? 서버에 데이터가 이미 있다면 덮어쓰지 않습니다.'))return
     setRemoteError('')
     try{
-      const result=await runTransaction(roomLiveRef,current=>current===null?localInitial.current:undefined,{applyLocally:false})
+      const result=await runTransaction(roomLiveRef,current=>current===null?normalizeRemote(localInitial.current):undefined,{applyLocally:false})
       if(!result.committed)alert('서버에 이미 데이터가 존재합니다. 기존 데이터를 덮어쓰지 않았습니다.')
     }catch(error){setRemoteError('최초 등록 실패: '+(error instanceof Error?error.message:String(error)))}
   }
