@@ -19,6 +19,16 @@
     "roomLiveLedgerMigration": {
       ".read": "auth != null && auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2'",
       ".write": "auth != null && auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2'"
+    },
+    "roomLiveV2": {
+      "operations": {
+        ".read": "auth != null && auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2'",
+        ".write": "auth != null && auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2'"
+      },
+      "finance": {
+        ".read": "auth != null && auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2'",
+        ".write": "auth != null && auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2'"
+      }
     }
   }
 }
