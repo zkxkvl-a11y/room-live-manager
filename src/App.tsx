@@ -18,7 +18,6 @@ export default function App() {
   const [detail, setDetail] = useState<string | null>(null)
   const [adjust, setAdjust] = useState<string | null>(null)
   const [chosen, setChosen] = useState<string | null>(null)
-  const [filter, setFilter] = useState('전체')
   const [editing, setEditing] = useState(false)
   const [moving, setMoving] = useState<string | null>(null)
   const [day, setDay] = useState('')
@@ -54,15 +53,6 @@ export default function App() {
     const payment: Payment = { id: crypto.randomUUID(), room: checkout, at, amount, method: payMethod, sessionId: store.sessions.filter(x => x.room === checkout && x.ended === null).sort((a,b) => b.started-a.started)[0]?.id ?? null }
     setStore(v => ({ ...v, payments: [payment, ...(v.payments ?? [])], sessions: v.sessions.map(x => x.room === checkout && x.ended === null ? { ...x, ended: at } : x), visits: v.visits.map(x => x.room === checkout && x.exited === null ? { ...x, exited: at } : x), rooms: v.rooms.map(x => x.id === checkout ? { ...x, started: null, ends: null, tags: [] } : x), logs: [record(checkout, `마무리(결제) · ${payMethod} · ${amount.toLocaleString('ko-KR')}원`), ...r.tags.map(tag => record(checkout, `${tag} 퇴실 · 결제 완료`)), ...v.logs] }))
     setCheckout(null); setDetail(null); setPayMethod(null); setPayAmount('')
-  }
-  function end(id: string) {
-    if (!confirm(`${id} 이용을 종료할까요?`)) return
-    setStore(s => {
-      const r = s.rooms.find(x => x.id === id)
-      const at = Date.now()
-      return { ...s, sessions: s.sessions.map(x => x.room === id && x.ended === null ? { ...x, ended: at } : x), visits: s.visits.map(x => x.room === id && x.exited === null ? { ...x, exited: at } : x), rooms: s.rooms.map(x => x.id === id ? { ...x, started: null, ends: null, tags: [] } : x), logs: [...(r?.tags.map(tag => record(id, `${tag} 퇴실 · 방 종료`)) ?? []), record(id, '방 종료'), ...s.logs] }
-    })
-    setDetail(null)
   }
   function place(tag: string, destination: string | null) {
     setStore(s => {
