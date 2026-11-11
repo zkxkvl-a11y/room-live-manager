@@ -4,3 +4,26 @@
 .history-rooms{display:flex;flex-direction:column;gap:10px}.history-rooms button{width:100%;display:flex;align-items:center;gap:12px;text-align:left;background:#1d2c45;color:#edf3ff;border:1px solid #3a5375;border-radius:12px;padding:17px}.history-rooms strong{font-size:22px;min-width:44px}.history-rooms span{flex:1;color:#afc4df;font-size:12px}.history-rooms b{font-size:22px}.pay-methods{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:18px 0}.pay-methods button{padding:14px 4px;background:#334560;color:white;border:1px solid #607391;border-radius:10px}.pay-methods button.active{background:#187b74;border-color:#74e2cf}.amount-label{display:flex;flex-direction:column;gap:9px;font-weight:700}.amount-label input{width:100%;font-size:20px;background:#0e1c2f;color:white;border:1px solid #6683a5;border-radius:10px;padding:14px}.pay-submit,.buttons .checkout-open{background:#15766d;color:white;padding:14px;border-radius:10px;font-weight:700}.pay-submit{width:100%;margin-top:22px}.pay-submit:disabled{opacity:.4}.sessions button{width:100%}
 
 .checkout-extra{margin-top:16px}.checkout-extra textarea{width:100%;background:#0e1c2f;color:white;border:1px solid #6683a5;border-radius:10px;padding:13px;resize:vertical;font:inherit}.checkout-extra input{font-size:16px}
+
+/* v0.3: three-column room board and freely placed empty slots */
+.room-grid.three-cols{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;align-items:stretch}
+.three-cols .room{min-width:0;min-height:151px;padding:11px 7px;display:flex;flex-direction:column;gap:7px;touch-action:pan-y}
+.three-cols .room-head{gap:2px;align-items:flex-start;flex-wrap:wrap}
+.three-cols .room-head strong{font-size:18px}
+.three-cols .room-head span{font-size:10px}
+.three-cols .time{font-size:clamp(14px,3.6vw,24px);letter-spacing:-.5px;margin:5px 0 2px;white-space:nowrap}
+.three-cols .tags{font-size:11px;min-height:16px;overflow-wrap:anywhere}
+.three-cols .room-pay{display:block;width:100%;margin-top:auto;background:#20776d;color:#fff;border-radius:8px;padding:9px 3px;font-size:12px;font-weight:800}
+.three-cols .room.expired{border:2px solid #ffa451;background:#4b2c30}
+.three-cols .room.expired .room-head span{color:#ffcb8d}
+.three-cols .room-pay.attention{background:#e87a2b;color:#1c1309;box-shadow:0 0 0 2px #ffb875;font-weight:900;animation:pay-pulse 1.5s ease-in-out infinite}
+@keyframes pay-pulse{0%,100%{box-shadow:0 0 0 1px #ffb875}50%{box-shadow:0 0 0 4px #ffb87588}}
+.empty-slot{min-height:151px;border:1px dashed #354158;border-radius:14px;background:transparent;pointer-events:none}
+.empty-slot.editable{pointer-events:auto;color:#90b4d8;background:#19283d;border:1px dashed #6487ae;font-size:12px}
+.layout-actions{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin:0 0 12px}
+.layout-actions .hint{width:100%}
+.layout-actions button{background:#294a6c;color:white;border-radius:8px;padding:10px;font-size:12px}
+.three-cols .room-tools{flex-wrap:wrap;gap:4px;margin-top:auto}
+.three-cols .room-tools button{font-size:11px;padding:6px 3px}
+.three-cols .place{font-size:11px;padding:7px 3px;margin-top:auto}
+@media(max-width:360px){.three-cols .room{padding:9px 5px}.three-cols .time{font-size:13px}}
