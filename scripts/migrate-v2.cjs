@@ -13,14 +13,19 @@ async function main(){
   const v2=db.ref('roomLiveV2')
   const current=(await v2.get()).val()
   if(current?.config?.active)throw Error('V2 is active; migration refused')
-  if(current?.operations||current?.finance)throw Error('V2 already contains data; migration refused (no overwrite)')
+  const replace=process.argv.includes('--replace-staging')
+  if((current?.operations||current?.finance)&&!replace)throw Error('V2 staging exists. Back up and use --replace-staging during a maintenance window.')
+  if(replace){
+    const backup=await db.ref('roomLiveLedgerMigration/v2CutoverBackup').transaction(old=>old??{legacy:source,staging:current??null,createdAt:Date.now()},undefined,false)
+    if(!backup.committed&&!backup.snapshot.exists())throw Error('Unable to preserve migration backup')
+  }
   const {payments,...operations}=source
   operations.logs=array(source.logs).filter(log=>!financeLog(log.action))
-  const finance={payments:array(payments)}
+  const finance={schemaVersion:2,payments:array(payments)}
   const again=(await db.ref('roomLive').get()).val()
   if(hash(source)!==hash(again))throw Error('Legacy data changed during migration; retry during maintenance window')
   const result=await v2.transaction(value=>{
-    if(value?.operations||value?.finance||value?.config?.active)return
+    if(value?.config?.active||((value?.operations||value?.finance)&&!replace))return
     return {...(value||{}),operations,finance,config:{active:false}}
   },undefined,false)
   if(!result.committed)throw Error('V2 changed concurrently; nothing overwritten')
