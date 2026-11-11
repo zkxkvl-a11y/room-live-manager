@@ -17,6 +17,8 @@ export function applyCheckout(previous:Store,request:CheckoutRequest):Store|unde
   const {paymentId,roomUid,method,amount,at,manager,memo,wari,wt}=request
   if(!Number.isSafeInteger(amount)||amount<=0||amount>1000000000)return
   if(!['현금','카드','이체','미수'].includes(method))return
+  if(!paymentId||!roomUid||!Number.isSafeInteger(at)||at<=0)return
+  if(manager.length>80||memo.length>1000||wari.length>200||wt.length>200)return
   if(previous.payments.some(p=>p.id===paymentId))return
   const sameRoom=(x:{room:string;roomUid?:string})=>
     x.roomUid===roomUid||(!x.roomUid&&previous.rooms.some(r=>(r.uid??r.id)===roomUid&&r.id===x.room))
@@ -31,8 +33,8 @@ export function applyCheckout(previous:Store,request:CheckoutRequest):Store|unde
     shopId:previous.groups?.find(g=>g.id===active.groupId)?.shopId
   }
   const logs:Log[]=[
-    {id:paymentId+'-checkout',at,room:active.id,roomUid,action:'마무리(결제) · '+method+' · '+amount.toLocaleString('ko-KR')+'원'},
-    ...active.tags.map((tag,index)=>({id:paymentId+'-exit-'+index,at,room:active.id,roomUid,action:tag+' 퇴실 · 결제 완료'}))
+    {id:paymentId+'-checkout',at,room:active.id,roomUid,action:'방 마감'},
+    ...active.tags.map((tag,index)=>({id:paymentId+'-exit-'+index,at,room:active.id,roomUid,action:tag+' 퇴실'}))
   ]
   return {...previous,
     payments:[payment,...previous.payments],
