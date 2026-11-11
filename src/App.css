@@ -54,3 +54,14 @@
 .manage-row small{font-size:11px;color:#a8bed8}
 .manage-row button,.manage-add{background:#2e4b70;color:white;padding:10px;border-radius:8px}
 .manage-add{margin:8px 0 18px;width:100%}
+
+/* v0.4.1 store separation and duplicate-name validation */
+.shop-section{padding:3px 0 20px}
+.shop-divider{display:flex;align-items:center;gap:12px;margin:18px 0 14px;font-size:19px;font-weight:800;color:#e9f5ff}
+.shop-divider:before,.shop-divider:after{content:"";height:2px;flex:1;background:linear-gradient(90deg,#527fa7,#8bb5d4)}
+.shop-divider span{white-space:nowrap;padding:4px 8px}
+.shop-section .group-section{margin-bottom:10px}
+.form-error{color:#ffb7ad;background:#5a2631;border:1px solid #b96b71;padding:11px;border-radius:9px;font-size:13px}
+.history-rooms span small{display:block;margin-top:5px;color:#8fa9c8}
+.layout-actions{flex-wrap:wrap}
+.layout-actions button{flex:0 1 auto;white-space:nowrap}
