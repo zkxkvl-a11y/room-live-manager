@@ -7,6 +7,7 @@ import { auth, database, roomLiveRef, ADMIN_UID } from './firebase'
 
 import { seed, read, normalizeRemote, format, operatingDay, ledgerDay, date } from './store-model'
 import { workerViewOf } from './worker-view'
+import { applyCheckout } from './services/checkout'
 import type { ObserverRoom, ObserverSnapshot, Room, Log, Payment, Store } from './store-model'
 
 export default function App() {
@@ -292,27 +293,7 @@ export default function App() {
         const result=await runTransaction(roomLiveRef,current=>{
           if(current===null)return
           const previous=normalizeRemote(current as Store)
-          const active=previous.rooms.find(x=>roomKey(x)===roomUid)
-          // Validate against the latest server state on every transaction retry.
-          if(!active||!active.started||previous.payments.some(p=>p.id===paymentId))return
-          const session=previous.sessions.filter(x=>sameRoom(x,roomUid)&&x.ended===null).sort((x,y)=>y.started-x.started)[0]
-          if(session&&session.started!==active.started)return
-          const payment:Payment={
-            id:paymentId,room:active.id,roomUid,at,startedAt:active.started,amount,method,
-            sessionId:session?.id??null,manager,memo,wari,wt,groupId:active.groupId,
-            shopId:previous.groups?.find(g=>g.id===active.groupId)?.shopId
-          }
-          const logs:Log[]=[
-            {id:paymentId+'-checkout',at,room:active.id,roomUid,action:'마무리(결제) · '+method+' · '+amount.toLocaleString('ko-KR')+'원'},
-            ...active.tags.map((tag,index)=>({id:paymentId+'-exit-'+index,at,room:active.id,roomUid,action:tag+' 퇴실 · 결제 완료'}))
-          ]
-          return {...previous,
-            payments:[payment,...previous.payments],
-            sessions:previous.sessions.map(x=>sameRoom(x,roomUid)&&x.ended===null?{...x,ended:at}:x),
-            visits:previous.visits.map(x=>sameRoom(x,roomUid)&&x.exited===null?{...x,exited:at}:x),
-            rooms:previous.rooms.map(x=>roomKey(x)===roomUid?{...x,started:null,ends:null,tags:[]}:x),
-            logs:[...logs,...previous.logs]
-          }
+          return applyCheckout(previous,{paymentId,roomUid,method,amount,at,manager,memo,wari,wt})
         },{applyLocally:false})
         if(!result.committed){alert('이미 마감됐거나 다른 사용자가 방 상태를 변경했습니다. 최신 상태를 확인해 주세요.');return}
         // The legacy roomLive transaction remains authoritative until the secure cutover.
