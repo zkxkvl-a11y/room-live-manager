@@ -153,8 +153,7 @@ export default function App() {
     if(!choice||!['observer','worker','admin'].includes(choice))return
     if(choice==='observer'){alert('옵저버 서버 조회 분리 전에는 승인할 수 없습니다. 다음 보안 패치에서 활성화됩니다.');return}
     if(choice==='admin'){alert('추가 관리자 서버 권한 분리 전에는 승인할 수 없습니다. 최초 관리자만 유지됩니다.');return}
-    if(!confirm(uid+' 계정을 실무자로 승인할까요?'))return
-    try{await set(ref(database,'roomLiveAccess/'+uid),'worker')}
+    alert('실무자 승인 기능은 결제·매출 데이터의 서버 경로 분리가 끝난 뒤 활성화됩니다. 기존 승인 계정은 유지됩니다.');return
     catch(error){setRemoteError('직원 승인 실패: '+String(error))}
   }
   async function changeStaffRole(uid:string){
@@ -162,8 +161,7 @@ export default function App() {
     const choice=prompt('변경할 권한 (worker / observer / admin)',approvedStaff[uid]??'worker')?.trim()
     if(!choice||!['worker','observer','admin'].includes(choice))return
     if(choice!=='worker'){alert('옵저버와 추가 관리자 권한은 서버 보안 분리 후 활성화할 수 있습니다.');return}
-    if(!confirm('해당 계정을 실무자로 설정할까요?'))return
-    try{await set(ref(database,'roomLiveAccess/'+uid),'worker')}catch(error){setRemoteError('권한 변경 실패: '+String(error))}
+    alert('권한 변경은 서버 데이터 경로별 보안 규칙 분리 후 활성화됩니다.');return
   }
   async function revokeStaff(uid:string){
     if(!isAdmin||!confirm('이 직원의 서버 접근 권한을 해제할까요?'))return
