@@ -114,3 +114,16 @@
 .section button{color:#edf5ff}
 button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid #6bd5e1;outline-offset:2px}
 @media(max-width:380px){.attendance-item{padding:10px}.attendance-list{gap:8px}.attendance-toggle strong{font-size:15px}.attendance-edit{font-size:12px}}
+
+/* Attendance editing is opt-in; new people are registered in an in-app sheet. */
+.attendance-edit-bar{align-items:center;margin:8px 0 14px}
+.attendance-edit-bar .hint{flex:1;min-width:0}
+.attendance-edit-bar button{flex-shrink:0;background:#2c4565;color:#f0f6ff;border:1px solid #526a89}
+.attendance-edit-bar button.active{background:#126c74;border-color:#6bd2d3}
+.attendance-team-label{display:block;color:#a7bbd3;font-size:12px;padding:5px 2px;min-height:24px;overflow-wrap:anywhere}
+.attendance-add-modal{padding-bottom:max(30px,env(safe-area-inset-bottom));}
+.attendance-add-modal form{display:flex;flex-direction:column;gap:16px;margin-top:20px}
+.attendance-add-modal label{display:flex;flex-direction:column;gap:8px;color:#dce9fb;font-size:14px;font-weight:700}
+.attendance-add-modal input,.attendance-add-modal select{width:100%;min-height:50px;border:1px solid #536c8d;border-radius:11px;background:#14233a;color:#f1f7ff;padding:12px;font:inherit;font-size:16px}
+.attendance-add-modal input::placeholder{color:#8ea5c0}
+.attendance-add-modal .pay-submit{margin-top:5px;min-height:50px}
