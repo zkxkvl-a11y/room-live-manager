@@ -570,6 +570,27 @@ export default function App() {
       setStore(s=>({...s,attendance:(s.attendance??[]).map(x=>x.id===id?{...x,name:name!}:x)}));return
     }
   }
+  function changeRoomHeadcount(id:string,count:number){
+    if(!canOperate||!readyRef.current||!Number.isInteger(count)||count<1||count>16)return
+    const at=Date.now(),requestedBy=auth.currentUser?.uid,logId=crypto.randomUUID()
+    const operation=async()=>{
+      if(!requestedBy||auth.currentUser?.uid!==requestedBy||!readyRef.current)return
+      const target=v2Active?ref(database,OPERATIONS_PATH):roomLiveRef
+      try{
+        const result=await runTransaction(target,current=>{
+          if(!current)return
+          const previous=normalizeRemote(v2Active?{...current,payments:v2PaymentsRef.current} as Store:current as Store)
+          const room=previous.rooms.find(r=>roomKey(r)===id)
+          if(!room)return
+          if(room.headcount===count)return
+          const next={...previous,rooms:previous.rooms.map(r=>roomKey(r)===id?{...r,headcount:count}:r),logs:[{id:logId,at,room:room.id,roomUid:id,action:'인원수 '+count+'명 설정'},...previous.logs]}
+          return v2Active?toOperations(next):next
+        },{applyLocally:false})
+        if(!result.committed)throw Error('인원수 저장이 완료되지 않았습니다.')
+      }catch(error){const message='인원수 변경 실패: '+String(error);setRemoteError(message);alert(message)}
+    }
+    transactionQueue.current=transactionQueue.current.then(operation,operation)
+  }
   function roomTap(id: string) {
     if (held.current) { held.current = false; return }
     if (editing) return
@@ -616,7 +637,7 @@ export default function App() {
               onPointerMove={e=>{if(touchStart.current&&Math.hypot(e.clientX-touchStart.current.x,e.clientY-touchStart.current.y)>12&&hold.current)clearTimeout(hold.current)}}
               onPointerUp={()=>{if(hold.current)clearTimeout(hold.current)}} onPointerLeave={()=>{if(hold.current)clearTimeout(hold.current)}} onPointerCancel={()=>{if(hold.current)clearTimeout(hold.current)}}
               onContextMenu={e=>{e.preventDefault();if(!editing&&!chosen.length){held.current=true;setAdjust(roomKey(r))}}}>
-              <div className="room-head"><strong>{r.id}</strong><span>{expired?'시간 종료':r.ends?'이용 중':'대기'}</span></div>
+              <div className="room-head"><strong>{r.id}</strong><div className="room-head-controls"><select className="room-headcount" aria-label={r.id+' 인원수'} title="인원수 선택" value={r.headcount??''} disabled={!canOperate||editing} onPointerDown={e=>e.stopPropagation()} onPointerUp={e=>e.stopPropagation()} onClick={e=>e.stopPropagation()} onChange={e=>{e.stopPropagation();changeRoomHeadcount(roomKey(r),Number(e.target.value))}}><option value="" disabled>인원</option>{Array.from({length:16},(_,i)=><option key={i+1} value={i+1}>{i+1}명</option>)}</select><span>{expired?'시간 종료':r.ends?'이용 중':'대기'}</span></div></div>
               <div className="time">{r.ends?format(r.ends-now):'--:--:--'}</div>
               <div className="tags">{r.tags.length?r.tags.map(helperName).join(' · '):'배치 인원 없음'}</div>
               {editing&&<div className="room-tools"><button onClick={e=>{e.stopPropagation();let name=prompt('방 이름',r.id)?.trim().toUpperCase();while(name&&name!==r.id){if(duplicated(name,g.shopId,roomKey(r))){alert('같은 가게에 이미 등록된 방 이름입니다. 다시 입력해 주세요.');name=prompt('다른 방 이름 입력',name)?.trim().toUpperCase();continue}setStore(v=>({...v,rooms:v.rooms.map(x=>roomKey(x)===roomKey(r)?{...x,id:name!}:x),logs:v.logs.map(x=>sameRoom(x,roomKey(r))?{...x,room:name!}:x),visits:v.visits.map(x=>sameRoom(x,roomKey(r))?{...x,room:name!}:x),sessions:v.sessions.map(x=>sameRoom(x,roomKey(r))?{...x,room:name!}:x),payments:v.payments.map(x=>sameRoom(x,roomKey(r))?{...x,room:name!}:x)}));break}}}>이름</button><button onClick={e=>{e.stopPropagation();if(r.started||r.tags.length){alert('진행 중인 방은 이동할 수 없습니다.');return}const dest=prompt('이동할 묶음 이름',g.name);const target=groups.find(x=>x.name===dest&&x.id!==g.id);if(target&&duplicated(r.id,target.shopId)){alert('이동할 가게에 같은 이름의 방이 있습니다. 이름을 변경한 후 이동해 주세요.');return}if(target)setStore(v=>({...v,rooms:v.rooms.map(x=>roomKey(x)===roomKey(r)?{...x,groupId:target.id}:x),groups:(v.groups??[]).map(x=>x.id===g.id?{...x,layout:x.layout.map(y=>y===roomKey(r)?null:y)}:x)}))}}>이동</button><button onClick={e=>{e.stopPropagation();if(r.started||r.tags.length){alert('이용 중인 방은 삭제할 수 없습니다.');return}if(confirm(r.id+' 삭제할까요?'))setStore(v=>({...v,rooms:v.rooms.filter(x=>roomKey(x)!==roomKey(r)),groups:(v.groups??[]).map(x=>({...x,layout:x.layout.map(y=>y===roomKey(r)?null:y)}))}))}}>삭제</button></div>}
