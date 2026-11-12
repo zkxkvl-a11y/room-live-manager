@@ -4,6 +4,7 @@ import type { FormEvent } from 'react'
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, type User } from 'firebase/auth'
 import { onValue, runTransaction, ref, set, remove } from 'firebase/database'
 import { auth, database, roomLiveRef, ADMIN_UID } from './firebase'
+import { loginEmailFromInput } from './staff-login'
 
 import { seed, read, normalizeRemote, format, operatingDay, ledgerDay, kstDate, date } from './store-model'
 import { workerViewOf } from './worker-view'
@@ -22,7 +23,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true)
   const [remoteState, setRemoteState] = useState<'loading'|'empty'|'ready'|'error'>('loading')
   const [remoteError, setRemoteError] = useState('')
-  const [loginEmail, setLoginEmail] = useState('')
+  const [loginId, setLoginId] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
   const [loginBusy, setLoginBusy] = useState(false)
   const localInitial = useRef<Store>(read())
@@ -295,7 +296,7 @@ export default function App() {
     event.preventDefault()
     setRemoteError('')
     setLoginBusy(true)
-    try{await signInWithEmailAndPassword(auth,loginEmail.trim(),loginPassword);setLoginPassword('')}
+    try{await signInWithEmailAndPassword(auth,loginEmailFromInput(loginId),loginPassword);setLoginPassword('')}
     catch(error){setRemoteError('로그인 실패: '+(error instanceof Error?error.message:String(error)))}
     finally{setLoginBusy(false)}
   }
@@ -443,7 +444,7 @@ export default function App() {
   }
   const selected = store.rooms.find(r => roomKey(r) === detail)
   if(authLoading)return <div className="cloud-gate"><h1>ROOM LIVE</h1><p>로그인 상태 확인 중...</p></div>
-  if(!account)return <div className="cloud-gate"><h1>ROOM LIVE</h1><p>Firebase 관리자 로그인</p><form onSubmit={login}><label>이메일<input type="email" autoComplete="username" required value={loginEmail} onChange={e=>setLoginEmail(e.target.value)}/></label><label>비밀번호<input type="password" autoComplete="current-password" required value={loginPassword} onChange={e=>setLoginPassword(e.target.value)}/></label><button disabled={loginBusy} type="submit">{loginBusy?'로그인 중...':'로그인'}</button></form>{remoteError&&<p role="alert" className="cloud-error">{remoteError}</p>}</div>
+  if(!account)return <div className="cloud-gate"><h1>ROOM LIVE</h1><p>직원은 아이디, 관리자는 기존 이메일로 로그인하세요.</p><form onSubmit={login}><label>아이디 또는 관리자 이메일<input type="text" inputMode="email" autoCapitalize="none" spellCheck={false} autoComplete="username" placeholder="staff01 또는 admin@example.com" required value={loginId} onChange={e=>setLoginId(e.target.value)}/></label><label>비밀번호<input type="password" autoComplete="current-password" required value={loginPassword} onChange={e=>setLoginPassword(e.target.value)}/></label><button disabled={loginBusy} type="submit">{loginBusy?'로그인 중...':'로그인'}</button></form>{remoteError&&<p role="alert" className="cloud-error">{remoteError}</p>}</div>
   if(role==='observer')return <div className="app"><header><div><span className="kicker">ROOM LIVE · 현황 옵저버</span><h1>방 현황</h1><p>실시간 조회 전용 · 수정 불가</p></div><button onClick={()=>signOut(auth)}>로그아웃</button></header><main>{remoteState==='loading'&&<p>서버 현황을 불러오는 중...</p>}{remoteState==='empty'&&<p>아직 공개된 방 현황이 없습니다. 관리자에게 현황 갱신을 요청해 주세요.</p>}{remoteState==='error'&&<p className="cloud-error">{remoteError}</p>}{observerData&&<><p className="hint">방 {observerData.rooms?.length??0}개 · 마지막 갱신 {new Date(observerData.updatedAt).toLocaleTimeString('ko-KR')}</p><div className="observer-grid">{(observerData.rooms??[]).map(r=><div className="observer-room" key={r.uid}><strong>{r.name}</strong><small>{r.shop} · {r.group}</small><b>{r.ends?format(r.ends-now):'대기'}</b><small>입실 {r.headcount}명</small></div>)}</div></>}</main></div>
   if(role==='pending')return <div className="cloud-gate"><h1>ROOM LIVE</h1><p>승인 대기 중인 계정입니다. 관리자에게 Firebase 사용자 UID를 전달하고 승인을 요청해 주세요.</p><p className="hint">내 UID: {account.uid}</p><button onClick={()=>navigator.clipboard?.writeText(account.uid)}>UID 복사</button><button onClick={()=>signOut(auth)}>로그아웃</button></div>
   if(remoteState!=='ready')return <div className="cloud-gate"><h1>ROOM LIVE</h1><p>{remoteState==='empty'?'서버 데이터가 아직 없습니다.':remoteState==='error'?'서버 연결에 실패했습니다.':'실시간 서버 데이터 연결 중...'}</p>{remoteState==='empty'&&isAdmin&&<><p>최초 한 번만 이 휴대폰의 기존 데이터를 서버에 등록합니다. 다른 휴대폰에서는 이 버튼을 누르지 마세요.</p><button onClick={importLocal}>이 휴대폰 데이터로 서버 시작</button></>}{remoteError&&<p role="alert" className="cloud-error">{remoteError}</p>}<button onClick={()=>signOut(auth)}>로그아웃</button></div>
