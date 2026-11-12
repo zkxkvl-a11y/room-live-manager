@@ -1,6 +1,8 @@
 // ROOM LIVE: cache only static app assets; Firebase/API traffic always uses network.
 const CACHE='room-live-static-v1'
-self.addEventListener('install',event=>{self.skipWaiting()})
+self.addEventListener('install',event=>{
+ event.waitUntil(caches.open(CACHE).then(cache=>cache.add('/offline.html')).then(()=>self.skipWaiting()))
+})
 self.addEventListener('activate',event=>{
  event.waitUntil(Promise.all([
   caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('room-live-static-')&&k!==CACHE).map(k=>caches.delete(k)))),
