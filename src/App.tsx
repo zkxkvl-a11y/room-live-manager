@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import './App.css'
-import type { FormEvent } from 'react'
+import type { FormEvent, MouseEvent } from 'react'
 import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, type User } from 'firebase/auth'
 import { onValue, runTransaction, ref, set, remove } from 'firebase/database'
 import { auth, database, roomLiveRef, ADMIN_UID } from './firebase'
@@ -594,7 +594,7 @@ export default function App() {
     }
     transactionQueue.current=transactionQueue.current.then(operation,operation)
   }
-  function openHeadcountMenu(event:React.MouseEvent<HTMLButtonElement>,id:string){
+  function openHeadcountMenu(event:MouseEvent<HTMLButtonElement>,id:string){
     event.preventDefault();event.stopPropagation()
     if(!canOperate||editing)return
     if(headcountMenu?.id===id){setHeadcountMenu(null);return}
