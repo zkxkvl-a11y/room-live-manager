@@ -1,8 +1,8 @@
 {
   "rules": {
     "roomLive": {
-      ".read": "auth != null && auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2'",
-      ".write": "auth != null && auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2'"
+      ".read": "auth != null && (auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2' || root.child('roomLiveAccess').child(auth.uid).val() === 'worker' || root.child('roomLiveAccess').child(auth.uid).val() === 'staff')",
+      ".write": "auth != null && (auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2' || root.child('roomLiveAccess').child(auth.uid).val() === 'worker' || root.child('roomLiveAccess').child(auth.uid).val() === 'staff') && newData.exists() && newData.hasChild('rooms') && newData.hasChild('payments')"
     },
     "roomLiveObserver": {
       ".read": "auth != null && (auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2' || root.child('roomLiveAccess').child(auth.uid).val() === 'observer')",
