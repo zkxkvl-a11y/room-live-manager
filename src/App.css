@@ -282,3 +282,17 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
  .room-board .room.room-state-warning::before,
  .room-board .room.room-state-critical::before{animation:none;transform:translate(-50%,-50%);background:var(--room-glow);opacity:.85}
 }
+
+/* Small in-app headcount dropdown, avoiding full-screen native Android picker. */
+.room-headcount{display:flex;align-items:center;justify-content:space-between;gap:4px;white-space:nowrap;cursor:pointer}
+.headcount-menu-shield{position:fixed;inset:0;z-index:1500;background:transparent}
+.headcount-menu{max-height:240px;overflow-y:auto;overscroll-behavior:contain;background:#263951;border:1px solid #6382a4;border-radius:10px;box-shadow:0 12px 28px #0009;padding:4px;z-index:1501}
+.headcount-menu button{display:block;width:100%;padding:9px 7px;min-height:37px;text-align:left;border:0;border-radius:6px;background:transparent;color:#edf5ff;font-size:13px}
+.headcount-menu button.active{background:#137b8a;color:#fff;font-weight:800}
+.room-staff-choices{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0}
+.room-staff-choice{border:1px solid #6682a3;background:#283e5a;color:#f0f6ff;border-radius:9px;padding:9px 13px;min-height:39px;font-weight:700}
+.room-staff-choice.selected{background:#117a89;border-color:#75e1f2;box-shadow:inset 0 0 0 1px #75e1f2;color:white}
+.room-out-area{display:flex;flex-direction:column;align-items:center;gap:4px;margin:12px auto 2px}
+.room-out-button{width:62px;height:62px;border-radius:50%;background:#bb3046;border:2px solid #f17886;color:white;font-size:15px;font-weight:850;box-shadow:0 4px 15px #7a1b3280}
+.room-out-button:disabled{opacity:.5}
+.room-out-area small{font-size:11px;color:#b8c7db}
