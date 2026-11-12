@@ -49,3 +49,26 @@ test('V2 checkout accepts Firebase object-map payment storage',()=>{
  assert.ok(next)
  assert.equal(next.finance.payments.length,2)
 })
+
+test('V2 checkout requires an active cutover flag and existing finance ledger',()=>{
+  const inactive=root()
+  inactive.config.active=false
+  assert.equal(applyV2Checkout(inactive,request),undefined)
+  const absent=root()
+  delete absent.finance
+  assert.equal(applyV2Checkout(absent,request),undefined)
+  const missingPayments=root()
+  missingPayments.finance={auditLogs:[]}
+  assert.equal(applyV2Checkout(missingPayments,request),undefined)
+})
+test('V2 checkout refuses missing, mismatched, or ambiguous active sessions',()=>{
+  const missing=root()
+  missing.operations.sessions=[]
+  assert.equal(applyV2Checkout(missing,request),undefined)
+  const mismatch=root()
+  mismatch.operations.sessions[0].started=999
+  assert.equal(applyV2Checkout(mismatch,request),undefined)
+  const ambiguous=root()
+  ambiguous.operations.sessions.push({...ambiguous.operations.sessions[0],id:'second'})
+  assert.equal(applyV2Checkout(ambiguous,request),undefined)
+})
