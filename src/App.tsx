@@ -631,13 +631,15 @@ export default function App() {
             const r=groupRooms.find(x=>roomKey(x)===id)
             if(!r)return <button key={'empty'+index} className={'empty-slot '+(editing?'editable':'')} disabled={!editing} onClick={()=>{if(moving)move(moving,index)}}>{editing?'＋ 빈칸':''}</button>
             const expired=Boolean(r.ends&&r.ends<=now)
-            return <div key={roomKey(r)} className={'room '+(r.ends?'running ':'')+(expired?'expired ':'')+(moving===roomKey(r)?'moving':'')}
+            const remaining=r.ends===null?null:r.ends-now
+            const roomVisualState=r.started!==null?(remaining!==null&&remaining<180000?'critical':remaining!==null&&remaining<=600000?'warning':'active'):(r.headcount&&r.headcount>=1?'choice':'idle')
+            return <div key={roomKey(r)} className={'room room-state-'+roomVisualState+' '+(r.ends?'running ':'')+(expired?'expired ':'')+(moving===roomKey(r)?'moving':'')}
               onClick={()=>editing?(moving?move(moving,index):setMoving(roomKey(r))):roomTap(roomKey(r))}
               onPointerDown={e=>{touchStart.current={x:e.clientX,y:e.clientY};held.current=false;if(!editing&&!chosen.length)hold.current=setTimeout(()=>{held.current=true;setDetail(null);setAdjust(roomKey(r))},550)}}
               onPointerMove={e=>{if(touchStart.current&&Math.hypot(e.clientX-touchStart.current.x,e.clientY-touchStart.current.y)>12&&hold.current)clearTimeout(hold.current)}}
               onPointerUp={()=>{if(hold.current)clearTimeout(hold.current)}} onPointerLeave={()=>{if(hold.current)clearTimeout(hold.current)}} onPointerCancel={()=>{if(hold.current)clearTimeout(hold.current)}}
               onContextMenu={e=>{e.preventDefault();if(!editing&&!chosen.length){held.current=true;setAdjust(roomKey(r))}}}>
-              <div className="room-head"><strong>{r.id}</strong><div className="room-head-controls"><select className="room-headcount" aria-label={r.id+' 인원수'} title="인원수 선택" value={r.headcount??''} disabled={!canOperate||editing} onPointerDown={e=>e.stopPropagation()} onPointerUp={e=>e.stopPropagation()} onClick={e=>e.stopPropagation()} onChange={e=>{e.stopPropagation();changeRoomHeadcount(roomKey(r),Number(e.target.value))}}><option value="" disabled>인원</option>{Array.from({length:16},(_,i)=><option key={i+1} value={i+1}>{i+1}명</option>)}</select><span>{expired?'시간 종료':r.ends?'이용 중':'대기'}</span></div></div>
+              <div className="room-head"><strong>{r.id}</strong><div className="room-head-controls"><select className="room-headcount" aria-label={r.id+' 인원수'} title="인원수 선택" value={r.headcount??''} disabled={!canOperate||editing} onPointerDown={e=>e.stopPropagation()} onPointerUp={e=>e.stopPropagation()} onClick={e=>e.stopPropagation()} onChange={e=>{e.stopPropagation();changeRoomHeadcount(roomKey(r),Number(e.target.value))}}><option value="" disabled>인원</option>{Array.from({length:16},(_,i)=><option key={i+1} value={i+1}>{i+1}명</option>)}</select><span>{roomVisualState==='choice'?'초이스 대기 중':roomVisualState==='critical'?(expired?'시간 종료':'종료 직전'):roomVisualState==='warning'?'종료 임박':roomVisualState==='active'?'진행 중':'대기'}</span></div></div>
               {r.started!==null&&<div className="room-entry-time">{new Date(r.started).toLocaleTimeString('ko-KR',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit',timeZone:'Asia/Seoul'})}</div>}
               <div className="time">{r.ends?format(r.ends-now):'--:--:--'}</div>
               <div className="tags">{r.tags.length?r.tags.map(helperName).join(' · '):'배치 인원 없음'}</div>
