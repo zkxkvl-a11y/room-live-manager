@@ -329,3 +329,9 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .system-status-toggle{width:100%;text-align:left;color:#dce8fa;background:transparent;border:0;padding:7px 3px;font-weight:650}
 .system-status-detail{margin-top:8px;padding:9px 10px;background:#101b2d;border-radius:8px;color:#cad8e8;font-size:13px;overflow-wrap:anywhere}
 .system-status-detail p{margin:5px 0}
+
+/* Admin role management: compact dark-mode control, no native prompt. */
+.staff-role-select{display:inline-flex;align-items:center;min-width:96px}
+.staff-role-select select{width:100%;min-height:36px;padding:6px 9px;background:#283f5e;border:1px solid #4d6989;border-radius:8px;color:#eef5ff;font-size:13px}
+.staff-role-select select:focus-visible{outline:2px solid #65d2da;outline-offset:2px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
