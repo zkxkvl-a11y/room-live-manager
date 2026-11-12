@@ -330,11 +330,11 @@ export default function App() {
     if(!isAdmin||!store.payments.some(p=>p.id===id&&p.method==='미수'))return
     setCollectId(id);setCollectMethod(null);setCollectNote('')
   }
-  function collectUnpaid(){
+  function collectUnpaid(confirmed=false){
     if(!isAdmin||!collectId||!collectMethod)return
     const original=store.payments.find(p=>p.id===collectId&&p.method==='미수')
     if(!original){setCollectId(null);return}
-    if(!confirm('미수 '+original.amount.toLocaleString('ko-KR')+'원을 '+collectMethod+'으로 전액 회수할까요?'))return
+    if(!confirmed){askConfirm('미수 회수','미수 '+original.amount.toLocaleString('ko-KR')+'원을 '+collectMethod+'으로 전액 회수할까요?',()=>collectUnpaid(true),false);return}
     const at=Date.now(),method=collectMethod,note=collectNote.trim(),id=collectId
     setLedger(previous=>{
       const current=previous.payments.find(p=>p.id===id&&p.method==='미수')
@@ -351,13 +351,13 @@ export default function App() {
     catch(error){setRemoteError('로그인 실패: '+(error instanceof Error?error.message:String(error)))}
     finally{setLoginBusy(false)}
   }
-  async function importLocal(){
+  async function importLocal(confirmed=false){
     if(!isAdmin)return
-    if(!confirm('이 휴대폰의 기존 데이터를 최초 서버 데이터로 등록할까요? 서버에 데이터가 이미 있다면 덮어쓰지 않습니다.'))return
+    if(!confirmed){askConfirm('서버 최초 등록','이 휴대폰의 기존 데이터를 서버에 등록할까요? 기존 서버 데이터는 덮어쓰지 않습니다.',()=>{void importLocal(true)});return}
     setRemoteError('')
     try{
       const result=await runTransaction(roomLiveRef,current=>current===null?normalizeRemote(localInitial.current):undefined,{applyLocally:false})
-      if(!result.committed)alert('서버에 이미 데이터가 존재합니다. 기존 데이터를 덮어쓰지 않았습니다.')
+      if(!result.committed)setRemoteError('서버에 이미 데이터가 존재합니다. 기존 데이터를 덮어쓰지 않았습니다.')
     }catch(error){setRemoteError('최초 등록 실패: '+(error instanceof Error?error.message:String(error)))}
   }
   const roomKey=(r:Room)=>r.uid??r.id
@@ -371,7 +371,7 @@ export default function App() {
   const shops = store.shops ?? seed.shops!
   const shopFor=(r:Room)=>groups.find(g=>g.id===r.groupId)?.shopId
   const duplicated=(name:string,shopId:string,exclude?:string)=>store.rooms.some(r=>r.id.toLocaleUpperCase()===name.toLocaleUpperCase()&&shopFor(r)===shopId&&roomKey(r)!==exclude)
-  const renameShop=(id:string)=>{const current=shops.find(x=>x.id===id);if(!current)return;let name=prompt('가게 이름',current.name)?.trim();while(name){if(shops.some(x=>x.id!==id&&x.name.toLocaleLowerCase()===name!.toLocaleLowerCase())){alert('이미 등록된 가게 이름입니다. 다른 이름을 입력해 주세요.');name=prompt('가게 이름 다시 입력',name)?.trim();continue}setStore(v=>({...v,shops:(v.shops??[]).map(x=>x.id===id?{...x,name:name!}:x)}));break}}
+  const renameShop=(id:string)=>{const current=shops.find(x=>x.id===id);if(!current)return;askInput('가게 이름 변경',current.name,value=>{const name=value.trim();if(!name)return;if(shops.some(x=>x.id!==id&&x.name.toLocaleLowerCase()===name.toLocaleLowerCase())){setRemoteError('이미 등록된 가게 이름입니다.');return}setStore(v=>({...v,shops:(v.shops??[]).map(x=>x.id===id?{...x,name}:x)}))})}
   const groups = store.groups ?? seed.groups!
   const openCheckout = (id: string) => { setCheckout(id); setPayMethod(null); setPayAmount(''); setPayManager(''); setPayMemo(''); setPayWari(''); setPayWt(''); setDetail(null) }
   function cancelRoom(id:string,confirmed=false) {
@@ -535,10 +535,10 @@ export default function App() {
     }
     transactionQueue.current=transactionQueue.current.then(operation,operation)
   }
-  function toggleAttendance(id:string){
+  function toggleAttendance(id:string,confirmed=false){
     const h=attendance.find(x=>x.id===id);if(!h)return
     if(h.working&&store.rooms.some(r=>r.tags.includes(id))){
-      if(!confirm(h.name+' 님이 방에 배치되어 있습니다. 퇴실 후 퇴근 처리할까요?'))return
+      if(!confirmed){askConfirm('퇴근 확인',h.name+' 님이 방에 배치되어 있습니다. 퇴실 후 퇴근 처리할까요?',()=>toggleAttendance(id,true));return}
     }
     const at=Date.now()
     setStore(s=>{
