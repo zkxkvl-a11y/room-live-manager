@@ -1,0 +1,20 @@
+{
+  "id": "/",
+  "name": "ROOM LIVE",
+  "short_name": "ROOM LIVE",
+  "description": "실시간 방 현황과 수기 매출 장부",
+  "lang": "ko",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#111827",
+  "theme_color": "#111827",
+  "icons": [
+    {
+      "src": "/room-live-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
