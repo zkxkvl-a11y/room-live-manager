@@ -307,3 +307,11 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .room-floating-selection .room-selection-clear{font-size:11px;padding:8px;white-space:nowrap}
 .room-floating-selection .room-out-button{width:48px;height:48px;font-size:12px;flex-shrink:0}
 @media(max-width:365px){.room-floating-selection{left:6px;right:6px;padding:6px}.room-floating-selection small{font-size:9px}}
+
+/* Compact, directly selectable room staff chips on the overview. */
+.room-inline-staff{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.room-inline-staff .room-staff-choice{min-height:29px;padding:4px 7px;font-size:12px;line-height:1.2;border-radius:7px;position:relative;z-index:1;touch-action:manipulation}
+.room-inline-staff .room-staff-choice.selected{background:#117a89;border-color:#83ecff;box-shadow:0 0 0 1px #83ecff;color:#fff}
+.room-floating-selection{left:50%;right:auto;transform:translateX(-50%);width:max-content;max-width:calc(100vw - 24px);padding:0;background:transparent;border:0;border-radius:0;box-shadow:none;gap:12px;z-index:4}
+.room-floating-selection .room-selection-clear{background:#304867;border:1px solid #7c9bb9;border-radius:11px;min-height:42px;padding:9px 14px;font-size:13px;box-shadow:0 3px 12px #0009}
+.room-floating-selection .room-out-button{width:54px;height:54px;font-size:12px;box-shadow:0 3px 14px #0009}
