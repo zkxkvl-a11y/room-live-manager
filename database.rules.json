@@ -78,6 +78,14 @@
         ".read": "auth != null && (auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2' || root.child('roomLiveAccess').child(auth.uid).val() === 'staff' || root.child('roomLiveAccess').child(auth.uid).val() === 'worker')",
         ".write": "auth != null && auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2'"
       }
+    },
+    "roomLiveProfiles": {
+      ".read": "auth != null && auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2' && auth.token.email === 'zkxkvl@gmail.com'",
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid && auth.uid !== 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2' && !data.exists() && newData.exists()",
+        ".validate": "newData.hasChildren(['name','loginId','createdAt']) && newData.childrenCount === 3 && newData.child('name').isString() && newData.child('name').val().length >= 2 && newData.child('name').val().length <= 40 && newData.child('loginId').isString() && newData.child('loginId').val().matches(/^[a-z][a-z0-9_-]{2,23}$/) && auth.token.email === newData.child('loginId').val() + '@roomlive.invalid' && newData.child('createdAt').isNumber() && newData.child('createdAt').val() <= now + 300000 && newData.child('createdAt').val() >= now - 300000"
+      }
     }
   }
 }
