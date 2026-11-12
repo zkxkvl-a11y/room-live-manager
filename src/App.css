@@ -97,3 +97,20 @@
 .observer-room{display:flex;flex-direction:column;gap:7px;min-width:0;border:1px solid #40536c;border-radius:12px;padding:14px;background:#202d40}
 .observer-room strong{font-size:18px}.observer-room b{font-variant-numeric:tabular-nums;font-size:21px}
 .observer-room small{color:#aebdd2;overflow-wrap:anywhere}
+
+/* Unified dark attendance controls: prevent native white button backgrounds. */
+.attendance-item{background:#1c2b43;border:1px solid #3d516e;padding:12px;display:flex;flex-direction:column;gap:10px;box-shadow:0 4px 14px #050b1626}
+.attendance-item.working{background:#173b3e;border:1px solid #35bba9}
+.attendance-toggle{appearance:none;-webkit-appearance:none;background:transparent;color:#eef4ff;border:0;border-radius:8px;padding:4px 2px;min-height:58px;gap:7px}
+.attendance-toggle strong{color:#f1f6ff;font-size:17px;line-height:1.3}
+.attendance-toggle span{color:#a7b9d2;font-size:12px}
+.attendance-item.working .attendance-toggle strong{color:#eafffa}
+.attendance-item select{background:#263955;color:#e9f3ff;border:1px solid #4b6282;min-height:43px;width:100%;font-size:14px;padding:9px 10px}
+.attendance-edit{appearance:none;-webkit-appearance:none;background:#2c4363;color:#e4efff;border:1px solid #435b7d;border-radius:9px;min-height:40px;padding:9px 8px;font-size:13px;font-weight:600;margin:0}
+.attendance-edit:active,.attendance-toggle:active{filter:brightness(1.2)}
+.attendance-list{gap:12px;margin-top:14px}
+.shop-tabs button{border:1px solid transparent;min-height:48px}
+.shop-tabs button.active{border-color:#63cbd2}
+.section button{color:#edf5ff}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid #6bd5e1;outline-offset:2px}
+@media(max-width:380px){.attendance-item{padding:10px}.attendance-list{gap:8px}.attendance-toggle strong{font-size:15px}.attendance-edit{font-size:12px}}
