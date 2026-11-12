@@ -165,3 +165,9 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .attendance-delete-actions button{min-height:48px;border-radius:10px;background:#344963;color:#f2f6ff;font-weight:700}
 .attendance-delete-actions .attendance-confirm-delete{background:#b83245;border:1px solid #e75a67;color:#fff}
 .attendance-delete-actions button:disabled{opacity:.55}
+
+/* Inline name-row delete control: override browser native button styling. */
+.attendance-name-row{display:flex;align-items:flex-start;justify-content:space-between;gap:3px;min-width:0}
+.attendance-name-row .attendance-toggle{flex:1;min-width:0;padding:0;text-align:left;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start}
+.attendance-name-row .attendance-delete-x{appearance:none;-webkit-appearance:none;position:static;flex:0 0 18px;display:flex;align-items:center;justify-content:center;width:18px;height:18px;min-width:18px;min-height:18px;max-width:18px;max-height:18px;margin:0;padding:0;border:1px solid #e16470;border-radius:5px;background:#a32c3b;color:#fff;font:700 14px/1 Arial,sans-serif;box-shadow:none;cursor:pointer}
+.attendance-name-row .attendance-delete-x:hover,.attendance-name-row .attendance-delete-x:active{background:#cf3448}
