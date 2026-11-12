@@ -315,3 +315,8 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .room-floating-selection{left:50%;right:auto;transform:translateX(-50%);width:max-content;max-width:calc(100vw - 24px);padding:0;background:transparent;border:0;border-radius:0;box-shadow:none;gap:12px;z-index:4}
 .room-floating-selection .room-selection-clear{background:#304867;border:1px solid #7c9bb9;border-radius:11px;min-height:42px;padding:9px 14px;font-size:13px;box-shadow:0 3px 12px #0009}
 .room-floating-selection .room-out-button{width:54px;height:54px;font-size:12px;box-shadow:0 3px 14px #0009}
+
+/* Per-person elapsed time inside the room detail only. */
+.room-staff-choices .room-staff-choice{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:61px}
+.room-staff-minutes{font-size:11px;font-weight:500;line-height:1.2;color:#b5c9e1}
+.room-staff-choice.selected .room-staff-minutes{color:#d4f9ff}
