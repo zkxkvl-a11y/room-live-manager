@@ -38,7 +38,7 @@ export function applyCheckout(previous:Store,request:CheckoutRequest):Store|unde
     payments:[payment,...previous.payments],
     sessions:previous.sessions.map(s=>sameRoom(s)&&s.ended===null?{...s,ended:at}:s),
     visits:previous.visits.map(v=>sameRoom(v)&&v.exited===null?{...v,exited:at}:v),
-    rooms:previous.rooms.map(r=>(r.uid??r.id)===roomUid?{...r,started:null,ends:null,tags:[]}:r),
+    rooms:previous.rooms.map(r=>(r.uid??r.id)===roomUid?{...r,started:null,ends:null,tags:[],headcount:undefined}:r),
     logs:[...logs,...previous.logs]
   }
 }
