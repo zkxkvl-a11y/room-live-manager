@@ -30,20 +30,16 @@ export default function App() {
   const [remoteState, setRemoteState] = useState<'loading'|'empty'|'ready'|'error'>('loading')
   const [remoteError, setRemoteError] = useState('')
   const [uiDialog,setUiDialog]=useState<{title:string;message?:string;kind:'confirm'|'input';value:string;danger?:boolean;onAccept:(value:string)=>void}|null>(null)
-  const [uiDialogError,setUiDialogError]=useState('')
   function askConfirm(title:string,message:string,onAccept:()=>void,danger=true){
-    setUiDialogError('')
     setUiDialog({title,message,kind:'confirm',value:'',danger,onAccept})
   }
   function askInput(title:string,value:string,onAccept:(value:string)=>void){
-    setUiDialogError('')
     setUiDialog({title,kind:'input',value,onAccept})
   }
   function acceptDialog(){
     if(!uiDialog)return
     const action=uiDialog.onAccept,value=uiDialog.value
     setUiDialog(null)
-    setUiDialogError('')
     action(value)
   }
   const [systemWarning,setSystemWarning]=useState('')
