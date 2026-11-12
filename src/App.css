@@ -320,3 +320,12 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .room-staff-choices .room-staff-choice{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:61px}
 .room-staff-minutes{font-size:11px;font-weight:500;line-height:1.2;color:#b5c9e1}
 .room-staff-choice.selected .room-staff-minutes{color:#d4f9ff}
+
+/* User-facing alerts and administrator-only diagnostics */
+.cloud-error[role="alert"]{display:flex;align-items:center;justify-content:space-between;gap:12px;overflow-wrap:anywhere}
+.cloud-error[role="alert"]>span{flex:1;min-width:0}
+.cloud-error[role="alert"]>button{flex-shrink:0;background:#553b4c;color:#fff;border:1px solid #ba7888;border-radius:8px;padding:7px 11px;font-size:13px}
+.system-status-section{margin:12px 0;padding:10px 12px;background:#17253b;border:1px solid #354c69;border-radius:11px}
+.system-status-toggle{width:100%;text-align:left;color:#dce8fa;background:transparent;border:0;padding:7px 3px;font-weight:650}
+.system-status-detail{margin-top:8px;padding:9px 10px;background:#101b2d;border-radius:8px;color:#cad8e8;font-size:13px;overflow-wrap:anywhere}
+.system-status-detail p{margin:5px 0}
