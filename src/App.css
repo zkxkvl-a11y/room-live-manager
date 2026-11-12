@@ -296,3 +296,14 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .room-out-button{width:62px;height:62px;border-radius:50%;background:#bb3046;border:2px solid #f17886;color:white;font-size:15px;font-weight:850;box-shadow:0 4px 15px #7a1b3280}
 .room-out-button:disabled{opacity:.5}
 .room-out-area small{font-size:11px;color:#b8c7db}
+
+/* Unified waiting / in-room staff selection actions. */
+.room-selection-actions{display:flex;justify-content:center;align-items:center;gap:12px}
+.room-selection-clear{background:#304867;border:1px solid #627f9e;border-radius:9px;color:#f3f7ff;padding:10px 13px;min-height:40px;font-size:13px;font-weight:700}
+.room-floating-selection{position:fixed;left:12px;right:12px;bottom:calc(74px + env(safe-area-inset-bottom,0px));z-index:500;display:flex;align-items:center;justify-content:space-between;gap:9px;background:#20334d;border:1px solid #52728f;border-radius:13px;padding:8px 12px;box-shadow:0 5px 24px #0009}
+.room-floating-selection span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.room-floating-selection b{font-size:13px;white-space:nowrap}
+.room-floating-selection small{font-size:10px;color:#b4c9dd;white-space:nowrap}
+.room-floating-selection .room-selection-clear{font-size:11px;padding:8px;white-space:nowrap}
+.room-floating-selection .room-out-button{width:48px;height:48px;font-size:12px;flex-shrink:0}
+@media(max-width:365px){.room-floating-selection{left:6px;right:6px;padding:6px}.room-floating-selection small{font-size:9px}}
