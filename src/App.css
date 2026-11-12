@@ -216,3 +216,27 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .app>main .room-grid{margin-bottom:9px}
 .app>main .room-grid.three-cols{gap:7px}
 @media(max-width:390px){.app>header{padding:8px 12px}.app>main{padding:9px 10px 20px}.app>main>.shop-tabs button{min-width:68px}}
+
+/* v0.5.2 dense room board: remove decorative vertical gaps, preserve tap targets. */
+.app>header.compact-header{display:flex;align-items:center;justify-content:space-between;min-height:0;padding:8px 12px;gap:8px;border-bottom:1px solid #34415a}
+.app>header.compact-header h1{font-size:20px;line-height:1.2;margin:0;white-space:nowrap}
+.app>header.compact-header .app-version{font-size:11px;color:#90a7c5;font-weight:500;white-space:nowrap}
+.app>main.room-board{padding:7px 10px 16px}
+.room-board>.section:first-child{margin:0 0 5px;min-height:30px}
+.room-board>.section:first-child h2{font-size:16px;line-height:1.2}
+.room-board>.section:first-child h2 small{font-size:10px}
+.room-board>.section:first-child button{min-height:30px;padding:5px 9px;font-size:12px;border-radius:7px}
+.room-board>.shop-tabs{margin:0 0 4px;padding-bottom:0;gap:5px}
+.room-board>.shop-tabs button{min-height:34px;padding:5px 7px;font-size:13px;border-radius:8px}
+.room-board>.shop-section{padding:0 0 3px}
+.room-board .shop-divider{margin:4px 0 5px;font-size:15px;line-height:1.2;gap:8px}
+.room-board .shop-divider span{padding:0 4px}
+.room-board .shop-divider:before,.room-board .shop-divider:after{height:1px}
+.room-board .group-section{padding:5px 0 0;margin:0;border-top:1px solid #293950}
+.room-board .group-section>.section{margin:0 0 5px;min-height:21px}
+.room-board .group-section h3{font-size:13px;line-height:1.25}
+.room-board .group-section .section small{font-size:10px}
+.room-board .room-grid{margin-bottom:6px}
+.room-board .room-grid.three-cols{gap:6px}
+.room-board .three-cols .room{min-height:135px}
+@media(max-width:390px){.app>header.compact-header{padding:7px 10px}.room-board>.shop-tabs button{min-width:64px}}
