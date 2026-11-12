@@ -233,7 +233,6 @@ export default function App() {
   },[isAdmin])
   async function addStaff(){
     if(!isAdmin)return
-    if(!v2Active){alert('V2 보안 전환 후 직원 승인이 가능합니다.');return}
     const uid=prompt('Firebase Authentication 사용자 UID 입력')?.trim()
     if(!uid)return
     if(!/^[a-zA-Z0-9]{20,128}$/.test(uid)||uid===ADMIN_UID){alert('UID 형식을 확인해 주세요.');return}
@@ -243,7 +242,7 @@ export default function App() {
     catch(error){setRemoteError('직원 승인 실패: '+String(error))}
   }
   async function changeStaffRole(uid:string){
-    if(!isAdmin||!v2Active)return
+    if(!isAdmin)return
     const choice=prompt('권한: worker / observer',approvedStaff[uid]??'worker')?.trim()
     if(choice!=='worker'&&choice!=='observer')return
     try{await set(ref(database,'roomLiveAccess/'+uid),choice)}
@@ -448,7 +447,7 @@ export default function App() {
   if(!account)return <div className="cloud-gate"><h1>ROOM LIVE</h1><p>Firebase 관리자 로그인</p><form onSubmit={login}><label>이메일<input type="email" autoComplete="username" required value={loginEmail} onChange={e=>setLoginEmail(e.target.value)}/></label><label>비밀번호<input type="password" autoComplete="current-password" required value={loginPassword} onChange={e=>setLoginPassword(e.target.value)}/></label><button disabled={loginBusy} type="submit">{loginBusy?'로그인 중...':'로그인'}</button></form>{remoteError&&<p role="alert" className="cloud-error">{remoteError}</p>}</div>
   if(role==='observer')return <div className="app"><header><div><span className="kicker">ROOM LIVE · 현황 옵저버</span><h1>방 현황</h1><p>실시간 조회 전용 · 수정 불가</p></div><button onClick={()=>signOut(auth)}>로그아웃</button></header><main>{remoteState==='loading'&&<p>서버 현황을 불러오는 중...</p>}{remoteState==='empty'&&<p>아직 공개된 방 현황이 없습니다. 관리자에게 현황 갱신을 요청해 주세요.</p>}{remoteState==='error'&&<p className="cloud-error">{remoteError}</p>}{observerData&&<><p className="hint">방 {observerData.rooms?.length??0}개 · 마지막 갱신 {new Date(observerData.updatedAt).toLocaleTimeString('ko-KR')}</p><div className="observer-grid">{(observerData.rooms??[]).map(r=><div className="observer-room" key={r.uid}><strong>{r.name}</strong><small>{r.shop} · {r.group}</small><b>{r.ends?format(r.ends-now):'대기'}</b><small>입실 {r.headcount}명</small></div>)}</div></>}</main></div>
   if(role==='pending')return <div className="cloud-gate"><h1>ROOM LIVE</h1><p>승인 대기 중인 계정입니다. 관리자에게 Firebase 사용자 UID를 전달하고 승인을 요청해 주세요.</p><p className="hint">내 UID: {account.uid}</p><button onClick={()=>navigator.clipboard?.writeText(account.uid)}>UID 복사</button><button onClick={()=>signOut(auth)}>로그아웃</button></div>
-  if(remoteState!=='ready')return <div className="cloud-gate"><h1>ROOM LIVE</h1><p>{remoteState==='empty'?'서버 데이터가 아직 없습니다.':remoteState==='error'?'서버 연결에 실패했습니다.':'실시간 서버 데이터 연결 중...'}</p>{remoteState==='empty'&&<><p>최초 한 번만 이 휴대폰의 기존 데이터를 서버에 등록합니다. 다른 휴대폰에서는 이 버튼을 누르지 마세요.</p><button onClick={importLocal}>이 휴대폰 데이터로 서버 시작</button></>}{remoteError&&<p role="alert" className="cloud-error">{remoteError}</p>}<button onClick={()=>signOut(auth)}>로그아웃</button></div>
+  if(remoteState!=='ready')return <div className="cloud-gate"><h1>ROOM LIVE</h1><p>{remoteState==='empty'?'서버 데이터가 아직 없습니다.':remoteState==='error'?'서버 연결에 실패했습니다.':'실시간 서버 데이터 연결 중...'}</p>{remoteState==='empty'&&isAdmin&&<><p>최초 한 번만 이 휴대폰의 기존 데이터를 서버에 등록합니다. 다른 휴대폰에서는 이 버튼을 누르지 마세요.</p><button onClick={importLocal}>이 휴대폰 데이터로 서버 시작</button></>}{remoteError&&<p role="alert" className="cloud-error">{remoteError}</p>}<button onClick={()=>signOut(auth)}>로그아웃</button></div>
   return <div className="app">
     <header><div><span className="kicker">ROOM LIVE · v0.5.2</span><h1>룸 라이브</h1><p>방 · 태그 · 시간 통합 관리</p></div><span className="status">● Firebase 실시간</span></header>
     {page === 'rooms' && <main>
