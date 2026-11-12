@@ -9,8 +9,7 @@ export function applyCancelRoom(previous:Store, roomUid:string, at:number, logId
   if(room.started===null&&room.ends===null&&room.tags.length===0&&!room.headcount)return
   const sameRoom=(x:{room:string;roomUid?:string})=>
     x.roomUid===roomUid||(!x.roomUid&&x.room===room.id)
-  const openSessions=previous.sessions.filter(s=>sameRoom(s)&&s.ended===null)
-  if(openSessions.length>1||(room.started!==null&&openSessions.length===1&&openSessions[0].started!==room.started))return
+  // Legacy data can contain stale or duplicate open sessions after time edits.\n  // Cancellation must close all matching sessions rather than abort the transaction.
   const logs:Log[]=[
     {id:logId,at,room:room.id,roomUid,action:'진행삭제 · 결제 없이 종료'},
     ...room.tags.map((tag,i)=>({id:logId+'-exit-'+i,at,room:room.id,roomUid,action:tag+' 퇴실 · 진행삭제'}))
