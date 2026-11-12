@@ -394,7 +394,7 @@ export default function App() {
   }
   function setRemainingMinutes(id:string,input:string){
     const trimmed=input.trim()
-    if(!/^\\d{1,5}$/.test(trimmed)){alert('남은 시간을 분 단위 숫자로 입력해 주세요. 예: 34');return}
+    if(!/^[0-9]{1,5}$/.test(trimmed)){alert('남은 시간을 분 단위 숫자로 입력해 주세요. 예: 34');return}
     const minutes=Number(trimmed)
     if(minutes<1||minutes>99999){alert('1~99999분 사이로 입력해 주세요.');return}
     const at=Date.now(),sessionId=crypto.randomUUID(),logId=crypto.randomUUID()
