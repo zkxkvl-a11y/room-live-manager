@@ -87,6 +87,15 @@
         ".validate": "newData.hasChildren(['name','loginId','createdAt']) && newData.child('name').isString() && newData.child('name').val().length >= 2 && newData.child('name').val().length <= 40 && newData.child('loginId').isString() && newData.child('loginId').val().matches(/^[a-z][a-z0-9_-]{2,23}$/) && auth.token.email === newData.child('loginId').val() + '@roomlive.invalid' && newData.child('createdAt').isNumber() && newData.child('createdAt').val() <= now + 300000 && newData.child('createdAt').val() >= now - 300000",
         "$other": {
           ".validate": false
+        },
+        "name": {
+          ".validate": true
+        },
+        "loginId": {
+          ".validate": true
+        },
+        "createdAt": {
+          ".validate": true
         }
       }
     }
