@@ -127,3 +127,26 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .attendance-add-modal input,.attendance-add-modal select{width:100%;min-height:50px;border:1px solid #536c8d;border-radius:11px;background:#14233a;color:#f1f7ff;padding:12px;font:inherit;font-size:16px}
 .attendance-add-modal input::placeholder{color:#8ea5c0}
 .attendance-add-modal .pay-submit{margin-top:5px;min-height:50px}
+
+/* Compact attendance tiles and T/C timecard */
+.attendance-list{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:10px 0 20px}
+.attendance-item{padding:8px;gap:5px;border-radius:10px;min-height:0;box-shadow:none}
+.attendance-toggle{min-height:0;gap:4px;padding:2px 0}
+.attendance-toggle strong{font-size:14px;line-height:1.25}
+.attendance-toggle span{font-size:10px}
+.attendance-team-label{font-size:10px;min-height:0;padding:0;color:#8da5c2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.attendance-card-actions{display:flex;gap:4px;margin-top:3px}
+.attendance-card-actions .attendance-edit{flex:1;min-width:0;padding:7px 2px;min-height:30px;font-size:10px;border-radius:6px;line-height:1.2}
+.attendance-item select{font-size:12px;min-height:32px;padding:5px}
+.tc-modal{max-height:88vh}
+.tc-date-label{display:flex;flex-direction:column;gap:7px;color:#c4d6eb;font-size:13px;margin:15px 0}
+.tc-date-label input{width:100%;background:#15243b;color:#f1f7ff;border:1px solid #526a88;border-radius:9px;padding:11px;font:inherit}
+.tc-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.tc-summary>div{background:#263a56;border:1px solid #425b79;border-radius:10px;padding:10px 6px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.tc-summary small{font-size:11px;color:#a9c1db}
+.tc-summary strong{font-size:clamp(12px,3vw,17px);overflow-wrap:anywhere}
+.tc-shift{display:flex;flex-direction:column;gap:5px;background:#20314a;padding:10px 12px;margin:6px 0;border-radius:9px;font-size:12px;color:#dce9fa}
+.tc-days{display:flex;flex-wrap:wrap;gap:6px;max-height:150px;overflow-y:auto}
+.tc-days button{background:#2a405e;color:#e8f2ff;padding:8px;border-radius:8px;font-size:12px}
+.tc-days button.active{background:#137782}
+@media(max-width:380px){.attendance-list{gap:5px}.attendance-item{padding:6px}.attendance-toggle strong{font-size:13px}.attendance-card-actions .attendance-edit{font-size:9px;padding:6px 1px}}
