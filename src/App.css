@@ -241,37 +241,44 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .room-board .three-cols .room{min-height:135px}
 @media(max-width:390px){.app>header.compact-header{padding:7px 10px}.room-board>.shop-tabs button{min-width:64px}}
 
-/* Room-status effects: compositor-friendly border-only animation. */
-@property --room-border-angle{syntax:"<angle>";inherits:false;initial-value:0deg}
-.room-board .room{position:relative;isolation:isolate}
-.room-board .room.room-state-choice{border-color:#48bce0}
+/* Room status effects: rotate a real painted layer; no CSS mask or @property. */
+.room-board .room{position:relative;isolation:isolate;overflow:hidden}
+.room-board .room.room-state-choice{border-color:#4ac6ed}
+.room-board .room.room-state-active{--room-glow:#30e4a5;--room-fill:#17363c;border-color:#238b78}
+.room-board .room.room-state-warning{--room-glow:#ffab42;--room-fill:#17363c;border-color:#d58b31}
+.room-board .room.room-state-critical{--room-glow:#ff5067;--room-fill:#17363c;border-color:#e3475b}
+.room-board .room.room-state-choice{--room-glow:#66d9ff;--room-fill:#1d2940}
 .room-board .room.room-state-choice::before,
 .room-board .room.room-state-active::before,
 .room-board .room.room-state-warning::before,
 .room-board .room.room-state-critical::before{
-  content:"";position:absolute;inset:-2px;border-radius:inherit;pointer-events:none;
-  padding:2px;z-index:0;
-  background:conic-gradient(from var(--room-border-angle),transparent 0deg,transparent 215deg,var(--room-glow) 295deg,var(--room-glow) 340deg,transparent 360deg);
-  -webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
-  -webkit-mask-composite:xor;mask-composite:exclude;
+ content:"";position:absolute;left:50%;top:50%;width:260%;aspect-ratio:1;
+ background:conic-gradient(transparent 0deg,transparent 215deg,var(--room-glow) 275deg,var(--room-glow) 325deg,transparent 360deg);
+ z-index:0;pointer-events:none;
+ animation:room-glow-spin 2.5s linear infinite;
 }
-.room-board .room.room-state-choice{--room-glow:#65d5ff}
-.room-board .room.room-state-choice::before{background:var(--room-glow);animation:room-choice-pulse 1.6s ease-in-out infinite}
-.room-board .room.room-state-active{--room-glow:#2de2a0;border-color:#268f77}
-.room-board .room.room-state-warning{--room-glow:#ffa73b;border-color:#bb762b}
-.room-board .room.room-state-critical{--room-glow:#ff4d62;border-color:#c83a4d}
-.room-board .room.room-state-active::before,
-.room-board .room.room-state-warning::before,
-.room-board .room.room-state-critical::before{animation:room-border-orbit 2.6s linear infinite}
+.room-board .room.room-state-choice::before{
+ background:var(--room-glow);animation:room-choice-pulse 1.5s ease-in-out infinite;
+}
+.room-board .room.room-state-choice::after,
+.room-board .room.room-state-active::after,
+.room-board .room.room-state-warning::after,
+.room-board .room.room-state-critical::after{
+ content:"";position:absolute;inset:2px;border-radius:13px;background:var(--room-fill);z-index:1;pointer-events:none;
+}
+.room-board .room.room-state-choice>*,
+.room-board .room.room-state-active>*,
+.room-board .room.room-state-warning>*,
+.room-board .room.room-state-critical>*{position:relative;z-index:2}
 .room-board .room.room-state-choice .room-head-controls>span{color:#77dfff}
 .room-board .room.room-state-active .room-head-controls>span{color:#66e4b1}
 .room-board .room.room-state-warning .room-head-controls>span{color:#ffbc69}
 .room-board .room.room-state-critical .room-head-controls>span{color:#ff8190}
-@keyframes room-choice-pulse{0%,100%{opacity:.2}50%{opacity:1}}
-@keyframes room-border-orbit{to{--room-border-angle:360deg}}
+@keyframes room-glow-spin{from{transform:translate(-50%,-50%) rotate(0deg)}to{transform:translate(-50%,-50%) rotate(360deg)}}
+@keyframes room-choice-pulse{0%,100%{opacity:.12}50%{opacity:1}}
 @media(prefers-reduced-motion:reduce){
-  .room-board .room.room-state-choice::before,
-  .room-board .room.room-state-active::before,
-  .room-board .room.room-state-warning::before,
-  .room-board .room.room-state-critical::before{animation:none;background:var(--room-glow);opacity:.8}
+ .room-board .room.room-state-choice::before,
+ .room-board .room.room-state-active::before,
+ .room-board .room.room-state-warning::before,
+ .room-board .room.room-state-critical::before{animation:none;transform:translate(-50%,-50%);background:var(--room-glow);opacity:.85}
 }
