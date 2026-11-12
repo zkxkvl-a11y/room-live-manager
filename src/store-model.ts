@@ -1,6 +1,7 @@
 export type ObserverRoom={uid:string;name:string;shop:string;group:string;started:number|null;ends:number|null;headcount:number}
 export type ObserverSnapshot={rooms:ObserverRoom[];updatedAt:number}
 export type Attendance={id:string;name:string;working:boolean;teamId?:string}
+export type AttendanceShift={id:string;tag:string;clockIn:number;clockOut:number|null}
 export type AttendanceTeam={id:string;name:string}
 export type Shop = { id: string; name: string }
 export type Group = { id: string; shopId: string; name: string; layout: (string | null)[] }
@@ -9,7 +10,7 @@ export type Log = { id: string; at: number; room: string; roomUid?: string; acti
 export type Visit = { id: string; tag: string; room: string; roomUid?: string; entered: number; exited: number | null }
 export type Session = { id: string; room: string; roomUid?: string; started: number; ended: number | null }
 export type Payment = { id: string; room: string; roomUid?: string; at: number; amount: number; method: '카드' | '현금' | '이체' | '미수'; sessionId: string | null; startedAt?:number; correctedAt?:number; correctionNote?:string; manager?: string; memo?: string; shopId?: string; groupId?: string; wari?: string; wt?: string }
-export type Store = { rooms: Room[]; tags: string[]; attendance?:Attendance[]; attendanceTeams?:AttendanceTeam[]; logs: Log[]; visits: Visit[]; sessions: Session[]; payments: Payment[]; layout?: (string | null)[]; shops?: Shop[]; groups?: Group[]; showWari?: boolean; showWt?: boolean }
+export type Store = { rooms: Room[]; tags: string[]; attendance?:Attendance[]; attendanceTeams?:AttendanceTeam[]; attendanceShifts?:AttendanceShift[]; logs: Log[]; visits: Visit[]; sessions: Session[]; payments: Payment[]; layout?: (string | null)[]; shops?: Shop[]; groups?: Group[]; showWari?: boolean; showWt?: boolean }
 export const seed: Store = { rooms: Array.from({ length: 6 }, (_, i) => ({ id: `${i + 1}T`, started: null, ends: null, tags: [] })), tags: ['A01', 'A02', 'A03', 'A04', 'A05', 'A06'], logs: [], visits: [], sessions: [], payments: [], layout: [], shops: [{ id: 'shop-a', name: '가게 A' }, { id: 'shop-b', name: '가게 B' }], groups: [{ id: 'group-default', shopId: 'shop-a', name: '기본 묶음', layout: [] }], showWari: true, showWt: true }
 export function read(): Store {
   try {
@@ -40,7 +41,7 @@ export function normalizeRemote(raw: Store): Store {
     value && typeof value==='object' ? Object.values(value) as T[] : []
   const rooms=array<Room>(raw.rooms).map(r=>({...r,tags:array<string>(r.tags),started:r.started??null,ends:r.ends??null}))
   const groups=array<Group>(raw.groups).map(g=>({...g,layout:Array.isArray(g.layout)?g.layout:[]}))
-  return {...seed,...raw,rooms,tags:array<string>(raw.tags),attendance:array<Attendance>(raw.attendance),attendanceTeams:array<AttendanceTeam>(raw.attendanceTeams),logs:array<Log>(raw.logs),visits:array<Visit>(raw.visits),sessions:array<Session>(raw.sessions),payments:array<Payment>(raw.payments),shops:array<Shop>(raw.shops),groups}
+  return {...seed,...raw,rooms,tags:array<string>(raw.tags),attendance:array<Attendance>(raw.attendance),attendanceTeams:array<AttendanceTeam>(raw.attendanceTeams),attendanceShifts:array<AttendanceShift>(raw.attendanceShifts),logs:array<Log>(raw.logs),visits:array<Visit>(raw.visits),sessions:array<Session>(raw.sessions),payments:array<Payment>(raw.payments),shops:array<Shop>(raw.shops),groups}
 }
 export const format = (ms: number) => { const n = Math.max(0, Math.ceil(ms / 1000)); return [Math.floor(n / 3600), Math.floor(n % 3600 / 60), n % 60].map(x => String(x).padStart(2, '0')).join(':') }
 // KST operating day: 17:00 inclusive through next-day 13:00 exclusive.
