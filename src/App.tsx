@@ -606,7 +606,7 @@ export default function App() {
   if(role==='pending')return <div className="cloud-gate"><h1>ROOM LIVE</h1><p>가입 신청이 접수되었습니다. 관리자 승인 후 이용할 수 있습니다.</p><p className="hint">내 UID: {account.uid}</p><button onClick={()=>navigator.clipboard?.writeText(account.uid)}>UID 복사</button><button onClick={()=>signOut(auth)}>로그아웃</button></div>
   if(remoteState!=='ready')return <div className="cloud-gate"><h1>ROOM LIVE</h1><p>{remoteState==='empty'?'서버 데이터가 아직 없습니다.':remoteState==='error'?'서버 연결에 실패했습니다.':'실시간 서버 데이터 연결 중...'}</p>{remoteState==='empty'&&isAdmin&&<><p>최초 한 번만 이 휴대폰의 기존 데이터를 서버에 등록합니다. 다른 휴대폰에서는 이 버튼을 누르지 마세요.</p><button onClick={importLocal}>이 휴대폰 데이터로 서버 시작</button></>}{remoteError&&<p role="alert" className="cloud-error">{remoteError}</p>}<button onClick={()=>signOut(auth)}>로그아웃</button></div>
   return <div className="app">
-    <header><div><span className="kicker">ROOM LIVE · v0.5.2</span><h1>룸 라이브</h1><p>방 · 태그 · 시간 통합 관리</p></div><span className="status">● Firebase 실시간</span></header>
+    <header className="compact-header"><h1>룸 라이브</h1><span className="app-version">v0.5.2</span></header>
     {page === 'rooms' && <main>
       <div className="section"><h2>방 현황 <small>{store.rooms.length}개</small></h2><button onClick={() => { if(!canOperate)return;setEditing(!editing); setMoving(null); setChosen([]) }}>{editing ? '편집 완료' : '배치 편집'}</button></div>
       <div className="shop-tabs"><button className={shopTab==='all'?'active':''} onClick={()=>setShopTab('all')}>전체</button>{shops.map(sh=><button key={sh.id} className={shopTab===sh.id?'active':''} onClick={()=>setShopTab(sh.id)}>{sh.name}</button>)}</div>
