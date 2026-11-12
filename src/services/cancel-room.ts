@@ -15,7 +15,7 @@ export function applyCancelRoom(previous:Store, roomUid:string, at:number, logId
     ...room.tags.map((tag,i)=>({id:logId+'-exit-'+i,at,room:room.id,roomUid,action:tag+' 퇴실 · 진행삭제'}))
   ]
   return {...previous,
-    rooms:previous.rooms.map(r=>(r.uid??r.id)===roomUid?{...r,started:null,ends:null,tags:[],headcount:undefined}:r),
+    rooms:previous.rooms.map(r=>(r.uid??r.id)===roomUid?{...r,started:null,ends:null,tags:[],headcount:null}:r),
     sessions:previous.sessions.map(s=>sameRoom(s)&&s.ended===null?{...s,ended:at}:s),
     visits:previous.visits.map(v=>sameRoom(v)&&v.exited===null?{...v,exited:at}:v),
     logs:[...logs,...previous.logs]
