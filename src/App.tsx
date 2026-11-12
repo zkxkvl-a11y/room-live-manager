@@ -259,16 +259,6 @@ export default function App() {
     if(!isAdmin||uid===ADMIN_UID||!staffProfiles[uid])return
     try{await set(ref(database,'roomLiveAccess/'+uid),choice)}catch(error){setRemoteError('승인 실패: '+String(error))}
   }
-  async function addStaff(){
-    if(!isAdmin)return
-    const uid=prompt('Firebase Authentication 사용자 UID 입력')?.trim()
-    if(!uid)return
-    if(!/^[a-zA-Z0-9]{20,128}$/.test(uid)||uid===ADMIN_UID){alert('UID 형식을 확인해 주세요.');return}
-    const choice=prompt('권한: worker (실무자) / observer (현황 조회)','worker')?.trim()
-    if(choice!=='worker'&&choice!=='observer')return
-    try{await set(ref(database,'roomLiveAccess/'+uid),choice)}
-    catch(error){setRemoteError('직원 승인 실패: '+String(error))}
-  }
   async function changeStaffRole(uid:string){
     if(!isAdmin)return
     const choice=prompt('권한: worker / observer',approvedStaff[uid]??'worker')?.trim()
