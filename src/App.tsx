@@ -42,6 +42,10 @@ export default function App() {
     setUiDialog(null)
     action(value)
   }
+  const [notice,setNotice]=useState('')
+  const [ledgerEdit,setLedgerEdit]=useState<{id:string;amount:string;method:Payment['method'];note:string}|null>(null)
+  const [groupDraft,setGroupDraft]=useState<{name:string;shopId:string}|null>(null)
+  function notify(message:string){setNotice(message)}
   const [systemWarning,setSystemWarning]=useState('')
   const [showSystemDetails,setShowSystemDetails]=useState(false)
   const [loginId, setLoginId] = useState('')
@@ -56,8 +60,8 @@ export default function App() {
   const v2OperationsRef=useRef<Store|null>(null)
   const v2PaymentsRef=useRef<Payment[]>([])
   function setStore(update:Store|((previous:Store)=>Store)) {
-    if(!canOperate){alert('현황 옵저버는 조회만 가능합니다.');return}
-    if(!readyRef.current){alert('서버 데이터 연결이 완료된 후 수정할 수 있습니다.');return}
+    if(!canOperate){notify('현황 옵저버는 조회만 가능합니다.');return}
+    if(!readyRef.current){notify('서버 데이터 연결이 완료된 후 수정할 수 있습니다.');return}
     const requestedBy=auth.currentUser?.uid
     const operation=async()=>{
       if(!requestedBy||auth.currentUser?.uid!==requestedBy||!readyRef.current)return
@@ -309,22 +313,24 @@ export default function App() {
     if(!isAdmin)return
     const original=store.payments.find(p=>p.id===id)
     if(!original)return
-    const amountText=prompt('정정 금액 (원)',String(original.amount))
-    if(amountText===null)return
-    if(!/^\d+$/.test(amountText.trim())||!Number.isSafeInteger(Number(amountText))||Number(amountText)<=0){alert('1원 이상의 올바른 금액을 입력해 주세요.');return}
-    const method=prompt('결제수단: 현금 / 카드 / 이체 / 미수',original.method)
-    if(method===null)return
-    if(!['현금','카드','이체','미수'].includes(method)){alert('결제수단을 확인해 주세요.');return}
-    const note=prompt('정정 사유 (필수)')
-    if(!note?.trim()){alert('정정 사유를 입력해 주세요.');return}
-    if(!confirm('기존 결제 정보를 정정하고 변경 기록을 남길까요?'))return
-    const at=Date.now(),logId=crypto.randomUUID()
-    setLedger(previous=>{
-      const current=previous.payments.find(p=>p.id===id)
-      if(!current)return previous
-      const next={...current,amount:Number(amountText),method:method as Payment['method'],correctedAt:at,correctionNote:note.trim()}
-      return {...previous,payments:previous.payments.map(p=>p.id===id?next:p),logs:[{id:logId,at,room:current.room,roomUid:current.roomUid,action:'관리자 장부 정정 · '+current.method+' '+current.amount+'원 → '+next.method+' '+next.amount+'원 · 사유: '+note.trim()},...previous.logs]}
-    })
+    setLedgerEdit({id,amount:String(original.amount),method:original.method,note:''})
+  }
+  function saveLedgerCorrection(){
+    if(!isAdmin||!ledgerEdit)return
+    const {id,amount,method,note}=ledgerEdit
+    if(!/^\d+$/.test(amount.trim())||!Number.isSafeInteger(Number(amount))||Number(amount)<=0||Number(amount)>1000000000){notify('정정 금액을 1원 이상 10억원 이하로 입력해 주세요.');return}
+    if(!note.trim()){notify('정정 사유를 입력해 주세요.');return}
+    if(!['현금','카드','이체','미수'].includes(method)){notify('결제수단을 확인해 주세요.');return}
+    askConfirm('장부 정정 확인','금액과 결제수단을 정정하고 변경 기록을 남길까요?',()=>{
+      const at=Date.now(),logId=crypto.randomUUID()
+      setLedger(previous=>{
+        const current=previous.payments.find(p=>p.id===id)
+        if(!current)return previous
+        const next={...current,amount:Number(amount),method,correctedAt:at,correctionNote:note.trim()}
+        return {...previous,payments:previous.payments.map(p=>p.id===id?next:p),logs:[{id:logId,at,room:current.room,roomUid:current.roomUid,action:'관리자 장부 정정 · '+current.method+' '+current.amount+'원 → '+next.method+' '+next.amount+'원 · 사유: '+note.trim()},...previous.logs]}
+      })
+      setLedgerEdit(null)
+    },false)
   }
   function openCollect(id:string){
     if(!isAdmin||!store.payments.some(p=>p.id===id&&p.method==='미수'))return
@@ -388,9 +394,9 @@ export default function App() {
           const next=applyCancelRoom(previous,id,at,logId)
           return next?(v2Active?toOperations(next):next):undefined
         },{applyLocally:false})
-        if(!result.committed){alert('진행삭제가 저장되지 않았습니다. 방이 이미 공실인지 확인해 주세요. 계속 실패하면 방 번호를 알려주세요.');return}
+        if(!result.committed){notify('진행삭제가 저장되지 않았습니다. 방이 이미 공실인지 확인해 주세요. 계속 실패하면 방 번호를 알려주세요.');return}
         setDetail(null);setCheckout(null);setAdjust(null)
-      }catch(error){const message=error instanceof Error?error.message:String(error);setRemoteError('진행삭제 실패: '+message);alert('진행삭제 저장 실패: '+message)}
+      }catch(error){const message=error instanceof Error?error.message:String(error);setRemoteError('진행삭제 실패: '+message);notify('진행삭제 저장 실패: '+message)}
     }
     transactionQueue.current=transactionQueue.current.then(operation,operation)
   }
@@ -413,9 +419,9 @@ export default function App() {
   }
   function setRemainingMinutes(id:string,input:string){
     const trimmed=input.trim()
-    if(!/^[0-9]{1,5}$/.test(trimmed)){alert('남은 시간을 분 단위 숫자로 입력해 주세요. 예: 34');return}
+    if(!/^[0-9]{1,5}$/.test(trimmed)){notify('남은 시간을 분 단위 숫자로 입력해 주세요. 예: 34');return}
     const minutes=Number(trimmed)
-    if(minutes<1||minutes>99999){alert('1~99999분 사이로 입력해 주세요.');return}
+    if(minutes<1||minutes>99999){notify('1~99999분 사이로 입력해 주세요.');return}
     const at=Date.now(),sessionId=crypto.randomUUID(),logId=crypto.randomUUID()
     setStore(s=>{
       const room=s.rooms.find(r=>roomKey(r)===id)
@@ -444,9 +450,9 @@ export default function App() {
     })
   }
   function saveCheckout() {
-    if (!checkout || !payMethod) { alert('결제 수단을 선택해 주세요.'); return }
-    if (!/^\d+$/.test(payAmount.trim()) || !Number.isSafeInteger(Number(payAmount)) || Number(payAmount) <= 0 || Number(payAmount) > 1000000000) { alert('결제금액을 1원 이상의 숫자로 입력해 주세요.'); return }
-    if(!canOperate||!readyRef.current){alert('서버 연결 후 결제할 수 있습니다.');return}
+    if (!checkout || !payMethod) { notify('결제 수단을 선택해 주세요.'); return }
+    if (!/^\d+$/.test(payAmount.trim()) || !Number.isSafeInteger(Number(payAmount)) || Number(payAmount) <= 0 || Number(payAmount) > 1000000000) { notify('결제금액을 1원 이상의 숫자로 입력해 주세요.'); return }
+    if(!canOperate||!readyRef.current){notify('서버 연결 후 결제할 수 있습니다.');return}
     if(checkoutPendingRef.current)return
     checkoutPendingRef.current=true
     setCheckoutSaving(true)
@@ -469,9 +475,9 @@ export default function App() {
           }
           if(status==='completed'){
             setCheckout(null);setDetail(null);setPayMethod(null);setPayAmount('');setPayManager('');setPayMemo('')
-          }else if(status==='rejected')alert('서버에서 결제를 거절했습니다. 방 상태와 권한을 확인하세요.')
-          else alert('결제 요청을 제출했습니다. 처리 결과를 확인한 뒤 다시 시도하세요.')
-        }catch(error){setRemoteError('결제 요청 실패: '+String(error));alert('결제 요청 실패. 저장 여부를 확인한 뒤 다시 시도하세요.')}
+          }else if(status==='rejected')notify('서버에서 결제를 거절했습니다. 방 상태와 권한을 확인하세요.')
+          else notify('결제 요청을 제출했습니다. 처리 결과를 확인한 뒤 다시 시도하세요.')
+        }catch(error){setRemoteError('결제 요청 실패: '+String(error));notify('결제 요청 실패. 저장 여부를 확인한 뒤 다시 시도하세요.')}
         finally{checkoutPendingRef.current=false;setCheckoutSaving(false)}
       }
       transactionQueue.current=transactionQueue.current.then(operation,operation)
@@ -484,9 +490,9 @@ export default function App() {
           const previous=normalizeRemote(current as Store)
           return applyCheckout(previous,{paymentId,roomUid,method,amount,at,manager,memo,wari,wt})
         },{applyLocally:false})
-        if(!result.committed){alert('이미 마감됐거나 다른 사용자가 방 상태를 변경했습니다. 최신 상태를 확인해 주세요.');return}
+        if(!result.committed){notify('이미 마감됐거나 다른 사용자가 방 상태를 변경했습니다. 최신 상태를 확인해 주세요.');return}
         setCheckout(null);setDetail(null);setPayMethod(null);setPayAmount('');setPayManager('');setPayMemo('')
-      }catch(error){setRemoteError('결제 저장 실패: '+String(error));alert('결제 저장 실패. 저장 결과를 확인한 후 다시 시도해 주세요.')}
+      }catch(error){setRemoteError('결제 저장 실패: '+String(error));notify('결제 저장 실패. 저장 결과를 확인한 후 다시 시도해 주세요.')}
       finally{checkoutPendingRef.current=false;setCheckoutSaving(false)}
     }
     transactionQueue.current=transactionQueue.current.then(operation,operation)
@@ -512,7 +518,7 @@ export default function App() {
   }
   function updateAttendanceTeam(personId:string,teamId:string){
     if(!readyRef.current||!canOperate)return
-    if(teamId&&!(store.attendanceTeams??[]).some(t=>t.id===teamId)){alert('존재하지 않는 소속입니다.');return}
+    if(teamId&&!(store.attendanceTeams??[]).some(t=>t.id===teamId)){notify('존재하지 않는 소속입니다.');return}
     const requestedBy=auth.currentUser?.uid
     setAttendanceTeamSaving(v=>({...v,[personId]:true}))
     const operation=async()=>{
@@ -530,7 +536,7 @@ export default function App() {
         const saved=normalizeRemote(result.snapshot.val() as Store)
         if(saved.attendance?.find(h=>h.id===personId)?.teamId!==teamId)throw Error('서버에 저장된 소속이 선택값과 다릅니다.')
         setRemoteError('')
-      }catch(error){const message='소속 변경 실패: '+(error instanceof Error?error.message:String(error));setRemoteError(message);alert(message)}
+      }catch(error){const message='소속 변경 실패: '+(error instanceof Error?error.message:String(error));setRemoteError(message);notify(message)}
       finally{setAttendanceTeamSaving(v=>({...v,[personId]:false}))}
     }
     transactionQueue.current=transactionQueue.current.then(operation,operation)
@@ -578,7 +584,7 @@ export default function App() {
       if(!result.committed)throw Error('삭제할 수 없습니다. 방에 배치되어 있으면 먼저 퇴실 처리해 주세요.')
     }
     try{await (transactionQueue.current=transactionQueue.current.then(operation,operation));setAttendanceDeleteId(null);setRemoteError('')}
-    catch(error){const message='출근자 삭제 실패: '+String(error);setRemoteError(message);alert(message)}
+    catch(error){const message='출근자 삭제 실패: '+String(error);setRemoteError(message);notify(message)}
     finally{setAttendanceDeleting(false)}
   }
   function renameAttendance(id:string){
@@ -607,7 +613,7 @@ export default function App() {
           return v2Active?toOperations(next):next
         },{applyLocally:false})
         if(!result.committed)throw Error('인원수 저장이 완료되지 않았습니다.')
-      }catch(error){const message='인원수 변경 실패: '+String(error);setRemoteError(message);alert(message)}
+      }catch(error){const message='인원수 변경 실패: '+String(error);setRemoteError(message);notify(message)}
     }
     transactionQueue.current=transactionQueue.current.then(operation,operation)
   }
@@ -646,7 +652,7 @@ export default function App() {
         if(!result.committed)throw Error('이미 퇴실했거나 변경 내용을 저장하지 못했습니다.')
         setChosen([])
         setRemoteError('')
-      }catch(error){const message='OUT 처리 실패: '+String(error);setRemoteError(message);alert(message)}
+      }catch(error){const message='OUT 처리 실패: '+String(error);setRemoteError(message);notify(message)}
       finally{setOutBusy(false)}
     }
     transactionQueue.current=transactionQueue.current.then(operation,operation)
@@ -729,7 +735,7 @@ export default function App() {
     {attendanceAddOpen&&<div className="overlay" onClick={()=>setAttendanceAddOpen(false)}><section className="modal attendance-add-modal" onClick={e=>e.stopPropagation()}><div className="section"><h2>출근자 추가</h2><button onClick={()=>setAttendanceAddOpen(false)}>닫기</button></div><form onSubmit={e=>{e.preventDefault();const name=attendanceNewName.trim();if(!name||name.length>40){setAttendanceAddError('이름은 1~40자로 입력해 주세요.');return}if(attendance.some(h=>h.name.toLocaleLowerCase()===name.toLocaleLowerCase())){setAttendanceAddError('이미 등록된 이름입니다.');return}const teamId=attendanceTeams.some(t=>t.id===attendanceNewTeam)?attendanceNewTeam:'';setStore(v=>({...v,attendance:[...(v.attendance??[]),{id:crypto.randomUUID(),name,working:false,teamId}]}));setAttendanceAddOpen(false)}}><label>이름<input autoFocus maxLength={40} required value={attendanceNewName} onChange={e=>{setAttendanceNewName(e.target.value);setAttendanceAddError('')}} placeholder="이름 입력"/></label><label>소속<select value={attendanceNewTeam} onChange={e=>setAttendanceNewTeam(e.target.value)}><option value="">미분류</option>{attendanceTeams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label>{attendanceAddError&&<p className="form-error" role="alert">{attendanceAddError}</p>}<button className="pay-submit" type="submit">출근자 등록</button></form></section></div>}
     {page==='payments'&&isAdmin&&<main><h2>장부</h2><p className="hint">방 이용 시작 시각 기준 · 한국시간 17:00 ~ 다음 날 13:00 · 13:00~17:00 시작 건은 미분류</p><div className="filters"><button className={ledgerPeriod==='day'?'active':''} onClick={()=>{setLedgerPeriod('day');setPayDay('')}}>일매출</button><button className={ledgerPeriod==='month'?'active':''} onClick={()=>{setLedgerPeriod('month');setPayDay('')}}>월매출</button><input type={ledgerPeriod==='day'?'date':'month'} value={payDay?ledgerPeriod==='month'?payDay.slice(0,7):payDay:ledgerPeriod==='month'?kstDate(Date.now()).slice(0,7):operatingDay(Date.now())??kstDate(Date.now())} onChange={e=>setPayDay(e.target.value)}/></div><div className="shop-tabs"><button className={payShopTab==='all'?'active':''} onClick={()=>{setPayShopTab('all');setPayGroup('all')}}>전체 가게</button>{shops.map(sh=><button key={sh.id} className={payShopTab===sh.id?'active':''} onClick={()=>{setPayShopTab(sh.id);setPayGroup('all')}}>{sh.name}</button>)}</div><div className="filters"><select value={payGroup} onChange={e=>setPayGroup(e.target.value)}><option value="all">전체 묶음</option>{groups.filter(g=>payShopTab==='all'||g.shopId===payShopTab).map(g=><option key={g.id} value={g.id}>{g.name}</option>)}</select><select value={ledgerMethod} onChange={e=>setLedgerMethod(e.target.value as typeof ledgerMethod)}>{(['전체','현금','카드','이체','미수'] as const).map(m=><option key={m} value={m}>{m}</option>)}</select></div>
       {(()=>{const selected=payDay?ledgerPeriod==='month'?payDay.slice(0,7):payDay:ledgerPeriod==='month'?kstDate(Date.now()).slice(0,7):operatingDay(Date.now())??kstDate(Date.now());const all=(store.payments??[]).filter(p=>{const day=ledgerDay(p,store.sessions);return day!==null&&(ledgerPeriod==='day'?day===selected:day.slice(0,7)===selected)&&(payShopTab==='all'||p.shopId===payShopTab)&&(payGroup==='all'||p.groupId===payGroup)});const total=(method:Payment['method'])=>all.filter(p=>p.method===method).reduce((n,p)=>n+p.amount,0);const cash=total('현금'),card=total('카드'),transfer=total('이체'),due=total('미수');const items=all.filter(p=>ledgerMethod==='전체'||p.method===ledgerMethod);const unclassified=(store.payments??[]).filter(p=>ledgerDay(p,store.sessions)===null);return <><div className="payment-summary"><div><small>수금 합계</small><strong>{(cash+card+transfer).toLocaleString('ko-KR')}원</strong></div><div><small>미수 합계</small><strong>{due.toLocaleString('ko-KR')}원</strong></div></div><h3>결제수단별 집계</h3><div className="ledger-breakdown">{([['현금',cash],['카드',card],['이체',transfer],['미수',due]] as const).map(([name,value])=><div className="manage-row" key={name}><b>{name}</b><strong>{value.toLocaleString('ko-KR')}원</strong><small>{all.filter(p=>p.method===name).length}건</small></div>)}</div><h3>결제 내역 · {items.length}건</h3><label className="memo-filter"><input type="checkbox" checked={memoOnly} onChange={e=>setMemoOnly(e.target.checked)}/> 비고만</label>{items.filter(p=>!memoOnly||Boolean(p.memo?.trim())).map(p=><div className="payment-entry" key={p.id}><strong>{p.room} · {p.method} · {p.amount.toLocaleString('ko-KR')}원</strong><small>{shops.find(x=>x.id===p.shopId)?.name} / {groups.find(g=>g.id===p.groupId)?.name} · 결제 {date(p.at)}</small><small>귀속 영업일 {ledgerDay(p,store.sessions)}</small>{p.manager&&<small>담당: {p.manager}</small>}{p.memo&&<p>비고: {p.memo}</p>}{p.correctionNote&&<small>정정 기록: {p.correctionNote} · {p.correctedAt?date(p.correctedAt):''}</small>}<div className="buttons"><button onClick={()=>correctLedgerPayment(p.id)}>정정</button>{p.method==='미수'&&<button onClick={()=>openCollect(p.id)}>미수 전액 회수</button>}</div></div>)}{items.length===0&&<p className="hint">선택한 기간의 결제 기록이 없습니다.</p>}{unclassified.length>0&&<p className="hint">마감 후 미분류 거래 {unclassified.length}건이 있습니다. 영업일 자동 귀속에서 제외되며 추후 정정 기능이 필요합니다.</p>}</>})()}</main>}
-    {page==='settings'&&isAdmin&&<main><h2>설정</h2><div className="section"><span>연결 상태: {remoteState==='ready'?'정상':'확인 필요'}</span><button onClick={()=>signOut(auth)}>로그아웃</button></div><section className="system-status-section"><button type="button" className="system-status-toggle" onClick={()=>setShowSystemDetails(v=>!v)} aria-expanded={showSystemDetails}>시스템 점검 {systemWarning?'· 확인 필요':'· 정상'} {showSystemDetails?'접기':'보기'}</button>{showSystemDetails&&<div className="system-status-detail"><p>서버 연결: {remoteState==='ready'?'정상':'확인 필요'}</p>{systemWarning?<p role="alert">{systemWarning}</p>:<p>확인된 장부 동기화 경고가 없습니다.</p>}<p className="hint">장부 기록은 자동으로 삭제하거나 덮어쓰지 않습니다.</p></div>}</section><h3>직원 승인 및 역할 관리</h3><p className="hint">직원은 로그인 화면에서 직접 가입합니다. 관리자 계정은 하나만 유지됩니다.</p>{Object.entries(staffProfiles).filter(([uid])=>uid!==ADMIN_UID).map(([uid,profile])=><div className="manage-row" key={uid}><small>{profile.name} · {profile.loginId} · {approvedStaff[uid]==='worker'||approvedStaff[uid]==='staff'?'직원':approvedStaff[uid]==='observer'?'조회 전용':'승인 대기'}</small>{!approvedStaff[uid]?<><button onClick={()=>approveStaff(uid,'worker')}>직원 승인</button><button onClick={()=>approveStaff(uid,'observer')}>조회 승인</button></>:<><label className="staff-role-select"><span className="sr-only">직원 역할</span><select aria-label="직원 역할 변경" value={approvedStaff[uid]==='observer'?'observer':'worker'} onChange={e=>changeStaffRole(uid,e.target.value as 'worker'|'observer')}><option value="worker">직원</option><option value="observer">조회 전용</option></select></label><button onClick={()=>revokeStaff(uid)}>승인 취소</button></>}</div>)}{Object.entries(approvedStaff).filter(([uid])=>uid!==ADMIN_UID&&!staffProfiles[uid]).map(([uid,v])=><div className="manage-row" key={uid}><small>기존 직원 · {uid} · {v}</small><label className="staff-role-select"><span className="sr-only">직원 역할</span><select aria-label="직원 역할 변경" value={approvedStaff[uid]==='observer'?'observer':'worker'} onChange={e=>changeStaffRole(uid,e.target.value as 'worker'|'observer')}><option value="worker">직원</option><option value="observer">조회 전용</option></select></label><button onClick={()=>revokeStaff(uid)}>승인 취소</button></div>)}<h3>결제 입력 항목</h3><label className="setting-row"><span>와리 표시</span><input type="checkbox" checked={store.showWari!==false} onChange={e=>setStore(v=>({...v,showWari:e.target.checked}))}/></label><label className="setting-row"><span>WT 표시</span><input type="checkbox" checked={store.showWt!==false} onChange={e=>setStore(v=>({...v,showWt:e.target.checked}))}/></label><h3>가게 관리</h3>{shops.map(sh=><div className="manage-row" key={sh.id}><b>{sh.name}</b><button onClick={()=>renameShop(sh.id)}>이름 변경</button></div>)}<button className="manage-add" onClick={()=>askInput('가게 추가','',value=>{const name=value.trim();if(!name)return;if(shops.some(x=>x.name.toLocaleLowerCase()===name.toLocaleLowerCase())){setRemoteError('이미 등록된 가게 이름입니다.');return}setStore(v=>({...v,shops:[...(v.shops??[]),{id:crypto.randomUUID(),name}]}))})}>+ 가게 추가</button><h3>방 묶음 관리</h3>{groups.map(g=><div className="manage-row" key={g.id}><div><b>{g.name}</b><small>{shops.find(sh=>sh.id===g.shopId)?.name}</small></div><button onClick={()=>askInput('묶음 이름 변경',g.name,value=>{const name=value.trim();if(!name)return;if(groups.some(x=>x.id!==g.id&&x.shopId===g.shopId&&x.name.toLocaleLowerCase()===name.toLocaleLowerCase())){setRemoteError('같은 가게에 이미 등록된 묶음 이름입니다.');return}setStore(v=>({...v,groups:(v.groups??[]).map(x=>x.id===g.id?{...x,name}:x)}))})}>이름</button><button onClick={()=>{if(store.rooms.some(r=>r.groupId===g.id)){setRemoteError('방이 있는 묶음은 삭제할 수 없습니다.');return}askConfirm('묶음 삭제',g.name+' 묶음을 삭제할까요?',()=>setStore(v=>({...v,groups:(v.groups??[]).filter(x=>x.id!==g.id)})))}}>삭제</button></div>)}<button className="manage-add" onClick={()=>{const name=prompt('새 묶음 이름')?.trim();if(!name)return;const sh=prompt('소속 가게 이름',shops[0]?.name);const target=shops.find(x=>x.name===sh);if(!target){alert('등록된 가게 이름을 입력해 주세요.');return}setStore(v=>({...v,groups:[...(v.groups??[]),{id:crypto.randomUUID(),shopId:target.id,name,layout:[]}]}))}}>+ 묶음 추가</button></main>}
+    {page==='settings'&&isAdmin&&<main><h2>설정</h2><div className="section"><span>연결 상태: {remoteState==='ready'?'정상':'확인 필요'}</span><button onClick={()=>signOut(auth)}>로그아웃</button></div><section className="system-status-section"><button type="button" className="system-status-toggle" onClick={()=>setShowSystemDetails(v=>!v)} aria-expanded={showSystemDetails}>시스템 점검 {systemWarning?'· 확인 필요':'· 정상'} {showSystemDetails?'접기':'보기'}</button>{showSystemDetails&&<div className="system-status-detail"><p>서버 연결: {remoteState==='ready'?'정상':'확인 필요'}</p>{systemWarning?<p role="alert">{systemWarning}</p>:<p>확인된 장부 동기화 경고가 없습니다.</p>}<p className="hint">장부 기록은 자동으로 삭제하거나 덮어쓰지 않습니다.</p></div>}</section><h3>직원 승인 및 역할 관리</h3><p className="hint">직원은 로그인 화면에서 직접 가입합니다. 관리자 계정은 하나만 유지됩니다.</p>{Object.entries(staffProfiles).filter(([uid])=>uid!==ADMIN_UID).map(([uid,profile])=><div className="manage-row" key={uid}><small>{profile.name} · {profile.loginId} · {approvedStaff[uid]==='worker'||approvedStaff[uid]==='staff'?'직원':approvedStaff[uid]==='observer'?'조회 전용':'승인 대기'}</small>{!approvedStaff[uid]?<><button onClick={()=>approveStaff(uid,'worker')}>직원 승인</button><button onClick={()=>approveStaff(uid,'observer')}>조회 승인</button></>:<><label className="staff-role-select"><span className="sr-only">직원 역할</span><select aria-label="직원 역할 변경" value={approvedStaff[uid]==='observer'?'observer':'worker'} onChange={e=>changeStaffRole(uid,e.target.value as 'worker'|'observer')}><option value="worker">직원</option><option value="observer">조회 전용</option></select></label><button onClick={()=>revokeStaff(uid)}>승인 취소</button></>}</div>)}{Object.entries(approvedStaff).filter(([uid])=>uid!==ADMIN_UID&&!staffProfiles[uid]).map(([uid,v])=><div className="manage-row" key={uid}><small>기존 직원 · {uid} · {v}</small><label className="staff-role-select"><span className="sr-only">직원 역할</span><select aria-label="직원 역할 변경" value={approvedStaff[uid]==='observer'?'observer':'worker'} onChange={e=>changeStaffRole(uid,e.target.value as 'worker'|'observer')}><option value="worker">직원</option><option value="observer">조회 전용</option></select></label><button onClick={()=>revokeStaff(uid)}>승인 취소</button></div>)}<h3>결제 입력 항목</h3><label className="setting-row"><span>와리 표시</span><input type="checkbox" checked={store.showWari!==false} onChange={e=>setStore(v=>({...v,showWari:e.target.checked}))}/></label><label className="setting-row"><span>WT 표시</span><input type="checkbox" checked={store.showWt!==false} onChange={e=>setStore(v=>({...v,showWt:e.target.checked}))}/></label><h3>가게 관리</h3>{shops.map(sh=><div className="manage-row" key={sh.id}><b>{sh.name}</b><button onClick={()=>renameShop(sh.id)}>이름 변경</button></div>)}<button className="manage-add" onClick={()=>askInput('가게 추가','',value=>{const name=value.trim();if(!name)return;if(shops.some(x=>x.name.toLocaleLowerCase()===name.toLocaleLowerCase())){setRemoteError('이미 등록된 가게 이름입니다.');return}setStore(v=>({...v,shops:[...(v.shops??[]),{id:crypto.randomUUID(),name}]}))})}>+ 가게 추가</button><h3>방 묶음 관리</h3>{groups.map(g=><div className="manage-row" key={g.id}><div><b>{g.name}</b><small>{shops.find(sh=>sh.id===g.shopId)?.name}</small></div><button onClick={()=>askInput('묶음 이름 변경',g.name,value=>{const name=value.trim();if(!name)return;if(groups.some(x=>x.id!==g.id&&x.shopId===g.shopId&&x.name.toLocaleLowerCase()===name.toLocaleLowerCase())){setRemoteError('같은 가게에 이미 등록된 묶음 이름입니다.');return}setStore(v=>({...v,groups:(v.groups??[]).map(x=>x.id===g.id?{...x,name}:x)}))})}>이름</button><button onClick={()=>{if(store.rooms.some(r=>r.groupId===g.id)){setRemoteError('방이 있는 묶음은 삭제할 수 없습니다.');return}askConfirm('묶음 삭제',g.name+' 묶음을 삭제할까요?',()=>setStore(v=>({...v,groups:(v.groups??[]).filter(x=>x.id!==g.id)})))}}>삭제</button></div>)}<button className="manage-add" onClick={()=>setGroupDraft({name:'',shopId:shops[0]?.id??''})}>+ 묶음 추가</button></main>}
     {remoteError&&<div className="cloud-error" role="alert"><span>{remoteError}</span><button type="button" onClick={()=>setRemoteError('')} aria-label="알림 닫기">닫기</button></div>}
     <nav className="nav-five"><button className={page === 'rooms' ? 'on' : ''} onClick={() => setPage('rooms')}>▦<span>방 현황</span></button><button className={page === 'attendance' ? 'on' : ''} onClick={() => setPage('attendance')}>♙<span>출근부</span></button><button className={page === 'logs' ? 'on' : ''} onClick={() => setPage('logs')}>◷<span>진행 기록</span></button>{isAdmin&&<button className={page === 'payments' ? 'on' : ''} onClick={() => setPage('payments')}>₩<span>장부</span></button>}{isAdmin&&<button className={page === 'settings' ? 'on' : ''} onClick={() => setPage('settings')}>⚙<span>설정</span></button>}{!isAdmin&&<button onClick={()=>signOut(auth)}>⇥<span>로그아웃</span></button>}</nav>
     {newRoomGroup&&<div className="overlay" onClick={()=>setNewRoomGroup(null)}><section className="modal" onClick={e=>e.stopPropagation()}><h2>방 추가</h2><p className="hint">{shops.find(sh=>sh.id===groups.find(g=>g.id===newRoomGroup)?.shopId)?.name} · {groups.find(g=>g.id===newRoomGroup)?.name}</p><label className="amount-label">방 이름<input autoFocus value={newRoomName} onChange={e=>{setNewRoomName(e.target.value.toUpperCase());setRoomError('')}} placeholder="예: 1T" maxLength={40}/></label>{roomError&&<p className="form-error">{roomError}</p>}<div className="buttons"><button onClick={()=>setNewRoomGroup(null)}>취소</button><button onClick={()=>{const name=newRoomName.trim().toUpperCase();const g=groups.find(x=>x.id===newRoomGroup);if(!name||!g){setRoomError('방 이름을 입력해 주세요.');return}if(duplicated(name,g.shopId)){setRoomError('같은 가게에 이미 등록된 방 이름입니다. 다른 이름을 입력해 주세요.');return}setStore(v=>({...v,rooms:[...v.rooms,{uid:crypto.randomUUID(),id:name,groupId:g.id,started:null,ends:null,tags:[]}]}));setNewRoomGroup(null);setNewRoomName('');setRoomError('')}}>방 추가 완료</button></div></section></div>}
@@ -738,6 +744,9 @@ export default function App() {
     {selected && <div className="overlay" onClick={() => {setDetail(null);setChosen([])}}><section className="modal" onClick={e => e.stopPropagation()}><div className="section"><h2>{selected.id} 상세</h2><button onClick={() => {setDetail(null);setChosen([])}}>닫기</button></div><div className="large-time">{selected.ends ? format(selected.ends - now) : '대기 중'}</div><p className="hint">{selected.started ? `시작: ${date(selected.started)}` : '시작 전'}</p><div className="buttons"><button onClick={() => selected.ends ? changeTime(roomKey(selected), 60) : start(roomKey(selected))}>{selected.ends ? '+1시간' : '60분 시작'}</button><button onClick={() => { setAdjust(roomKey(selected)); setDetail(null) }}>시간 조절</button>{selected.started && <><button className="checkout-open" onClick={() => { openCheckout(roomKey(selected)) }}>마무리 (결제)</button></>}{(selected.started!==null||selected.headcount||selected.tags.length>0)&&<button className="danger" onClick={()=>cancelRoom(roomKey(selected))}>진행삭제</button>}</div><h3>배치된 인원</h3><div className="room-staff-choices">{selected.tags.map(tag=><button type="button" key={tag} className={'room-staff-choice '+(chosen.includes(tag)?'selected':'')} aria-pressed={chosen.includes(tag)} onClick={()=>setChosen(prev=>prev.includes(tag)?prev.filter(x=>x!==tag):[...prev,tag])}><span>{helperName(tag)}</span><small className="room-staff-minutes">{(()=>{const visit=store.visits.filter(v=>v.tag===tag&&v.exited===null&&sameRoom(v,roomKey(selected))).sort((a,b)=>b.entered-a.entered)[0];return visit?Math.max(0,Math.floor((now-visit.entered)/60000))+'분':'--분'})()}</small></button>)}</div>{!selected.tags.length&&<p className="hint">배치 인원 없음</p>}{chosen.length>0&&<div className="room-out-area"><div className="room-selection-actions"><button type="button" className="room-selection-clear" onClick={()=>setChosen([])}>선택 취소</button><button type="button" className="room-out-button" disabled={outBusy||!chosen.some(tag=>store.rooms.some(r=>r.tags.includes(tag)))} onClick={()=>outSelectedFromRoom(chosen)}>OUT</button></div><small>{chosen.length}명 선택 · 상세창을 닫고 이동할 방을 누르세요</small></div>}</section></div>}
     {collectId&&isAdmin&&<div className="overlay" onClick={()=>setCollectId(null)}><section className="modal" onClick={e=>e.stopPropagation()}><div className="section"><h2>미수금 전액 회수</h2><button onClick={()=>setCollectId(null)}>닫기</button></div><p className="hint">{(()=>{const p=store.payments.find(x=>x.id===collectId);return p?p.room+' · '+p.amount.toLocaleString('ko-KR')+'원':'결제 내역 확인 중'})()}</p><h3>회수 수단 선택</h3><div className="pay-methods">{(['현금','카드','이체'] as const).map(m=><button type="button" key={m} className={collectMethod===m?'active':''} onClick={()=>setCollectMethod(m)}>{m}</button>)}</div><label className="amount-label">회수 비고 (선택)<textarea rows={2} maxLength={500} value={collectNote} onChange={e=>setCollectNote(e.target.value)} placeholder="예: 계좌 입금 확인"/></label><button className="pay-submit" disabled={!collectMethod} onClick={()=>collectUnpaid()}>선택한 수단으로 전액 회수</button></section></div>}
     {checkout && <div className="overlay" onClick={() => setCheckout(null)}><section className="modal" onClick={e => e.stopPropagation()}><div className="section"><h2>{roomName(checkout)} · 마무리(결제)</h2><button onClick={() => setCheckout(null)}>취소</button></div><p className="hint">결제 수단을 선택하고 금액을 입력한 후 완료하세요. 미수는 실제 수금이 아닌 미수 기록으로 저장됩니다.</p><div className="pay-methods">{(['카드','현금','이체','미수'] as const).map(m => <button key={m} className={payMethod === m ? 'active' : ''} onClick={() => setPayMethod(m)}>{m}</button>)}</div><label className="amount-label">{payMethod === '미수' ? '미수 금액' : '결제금액'} (원)<input inputMode="numeric" type="text" pattern="[0-9]*" placeholder="예: 150000" value={payAmount} onChange={e => setPayAmount(e.target.value.replace(/[^0-9]/g,''))}/></label><label className="amount-label checkout-extra">담당<input type="text" maxLength={80} placeholder="담당자 이름 입력" value={payManager} onChange={e => setPayManager(e.target.value)}/></label>{store.showWari!==false&&<label className="amount-label checkout-extra">와리<input type="text" value={payWari} onChange={e=>setPayWari(e.target.value)} placeholder="와리 입력"/></label>}{store.showWt!==false&&<label className="amount-label checkout-extra">WT<input type="text" value={payWt} onChange={e=>setPayWt(e.target.value)} placeholder="WT 입력"/></label>}<label className="amount-label checkout-extra">비고 (메모)<textarea rows={3} maxLength={1000} placeholder="결제 관련 메모 입력" value={payMemo} onChange={e => setPayMemo(e.target.value)}/></label><button className="pay-submit" disabled={checkoutSaving || !payMethod || !payAmount || Number(payAmount) <= 0} onClick={saveCheckout}>{checkoutSaving?'결제 저장 중...':'완료 · 기록 저장 및 방 마무리'}</button></section></div>}
+    {notice&&<div className="cloud-error" role="alert"><span>{notice}</span><button type="button" onClick={()=>setNotice('')}>닫기</button></div>}
+    {groupDraft&&<div className="overlay" onClick={()=>setGroupDraft(null)}><section className="modal app-dialog" role="dialog" aria-modal="true" onClick={e=>e.stopPropagation()}><h2>묶음 추가</h2><label className="amount-label">묶음 이름<input autoFocus maxLength={40} value={groupDraft.name} onChange={e=>setGroupDraft(v=>v?{...v,name:e.target.value}:null)}/></label><label className="amount-label">소속 가게<select value={groupDraft.shopId} onChange={e=>setGroupDraft(v=>v?{...v,shopId:e.target.value}:null)}>{shops.map(sh=><option key={sh.id} value={sh.id}>{sh.name}</option>)}</select></label><div className="app-dialog-actions"><button type="button" onClick={()=>setGroupDraft(null)}>취소</button><button type="button" className="app-dialog-accept" disabled={!groupDraft.name.trim()||!groupDraft.shopId} onClick={()=>{const name=groupDraft.name.trim(),shopId=groupDraft.shopId;if(groups.some(g=>g.shopId===shopId&&g.name.toLocaleLowerCase()===name.toLocaleLowerCase())){notify('같은 가게에 이미 등록된 묶음 이름입니다.');return}setStore(v=>({...v,groups:[...(v.groups??[]),{id:crypto.randomUUID(),shopId,name,layout:[]}]}));setGroupDraft(null)}}>추가</button></div></section></div>}
+    {ledgerEdit&&<div className="overlay" onClick={()=>setLedgerEdit(null)}><section className="modal app-dialog" role="dialog" aria-modal="true" onClick={e=>e.stopPropagation()}><h2>장부 정정</h2><label className="amount-label">정정 금액 (원)<input inputMode="numeric" value={ledgerEdit.amount} onChange={e=>setLedgerEdit(v=>v?{...v,amount:e.target.value.replace(/[^0-9]/g,'')}:null)}/></label><label className="amount-label">결제수단<select value={ledgerEdit.method} onChange={e=>setLedgerEdit(v=>v?{...v,method:e.target.value as Payment['method']}:null)}>{(['현금','카드','이체','미수'] as const).map(m=><option key={m} value={m}>{m}</option>)}</select></label><label className="amount-label">정정 사유 (필수)<textarea rows={3} maxLength={500} value={ledgerEdit.note} onChange={e=>setLedgerEdit(v=>v?{...v,note:e.target.value}:null)}/></label><div className="app-dialog-actions"><button type="button" onClick={()=>setLedgerEdit(null)}>취소</button><button type="button" className="app-dialog-accept" disabled={!ledgerEdit.note.trim()||!ledgerEdit.amount} onClick={saveLedgerCorrection}>정정 저장</button></div></section></div>}
     {uiDialog&&<div className="overlay app-dialog-overlay" onClick={()=>setUiDialog(null)}><section className="modal app-dialog" role="dialog" aria-modal="true" aria-labelledby="app-dialog-title" onClick={e=>e.stopPropagation()}><h2 id="app-dialog-title">{uiDialog.title}</h2>{uiDialog.message&&<p>{uiDialog.message}</p>}{uiDialog.kind==='input'&&<input autoFocus aria-label={uiDialog.title} maxLength={80} value={uiDialog.value} onChange={e=>setUiDialog(v=>v?{...v,value:e.target.value}:null)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();acceptDialog()}}}/>}<div className="app-dialog-actions"><button type="button" onClick={()=>setUiDialog(null)}>취소</button><button type="button" className={uiDialog.danger?'app-dialog-danger':'app-dialog-accept'} disabled={uiDialog.kind==='input'&&!uiDialog.value.trim()} onClick={acceptDialog}>{uiDialog.kind==='input'?'저장':'확인'}</button></div></section></div>}
     {adjust && <div className="overlay" onClick={() => setAdjust(null)}><section className="modal" onClick={e => e.stopPropagation()}><div className="section"><h2>{roomName(adjust)} 시간 조절</h2><button onClick={() => setAdjust(null)}>닫기</button></div><p className="hint">남은 시간을 분 단위로 직접 입력하세요. 34 입력 시 34분 00초로 설정됩니다.</p><form className="direct-time-form" onSubmit={e=>{e.preventDefault();setRemainingMinutes(adjust,directMinutes)}}><label htmlFor="direct-minutes">남은 시간 (분)</label><input id="direct-minutes" type="number" inputMode="numeric" min="1" max="99999" step="1" placeholder="예: 34" value={directMinutes} onChange={e=>setDirectMinutes(e.target.value)} required/><button type="submit">직접 입력 · 시간 적용</button></form></section></div>}
     {viewSession && <div className="overlay" onClick={() => setViewSession(null)}><section className="modal" onClick={e => e.stopPropagation()}><div className="section"><h2>이용 회차 상세</h2><button onClick={() => setViewSession(null)}>닫기</button></div>{(() => { const x = store.sessions.find(s => s.id === viewSession); if (!x) return null; const next = store.sessions.filter(s => (x.roomUid ? s.roomUid === x.roomUid : s.room === x.room) && s.started > x.started).sort((a,b) => a.started-b.started)[0]; const end = x.ended ?? next?.started ?? now; return <><p>{x.room} · 시작 {date(x.started)}</p><p>종료 {x.ended ? date(x.ended) : '진행 중'} · 경과 {Math.floor((end-x.started)/60000)}분</p><h3>태그 입퇴실</h3>{store.visits.filter(v => (x.roomUid ? v.roomUid === x.roomUid : v.room === x.room) && v.entered >= x.started && v.entered <= end).map(v => <p className="visit" key={v.id}>{helperName(v.tag)} · 입실 {date(v.entered)} · 퇴실 {v.exited ? date(v.exited) : '이용 중'}</p>)}<h3>조작 기록</h3>{store.logs.filter(l => (x.roomUid ? l.roomUid === x.roomUid : l.room === x.room) && l.at >= x.started && l.at <= end).map(l => <p className="visit" key={l.id}>{date(l.at)} · {l.action}</p>)}</> })()}</section></div>}
