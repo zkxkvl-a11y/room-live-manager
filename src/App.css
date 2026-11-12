@@ -181,3 +181,11 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .direct-time-form input{appearance:textfield;-moz-appearance:textfield;width:100%;min-height:55px;background:#17283f;border:1px solid #54718e;border-radius:11px;color:#fff;padding:12px 14px;font-size:23px;font-weight:750}
 .direct-time-form input::-webkit-inner-spin-button,.direct-time-form input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 .direct-time-form button{background:#137983;border:1px solid #52c2c6;color:#fff;border-radius:11px;min-height:50px;font-size:16px;font-weight:750}
+
+/* Compact customer count selector beside each room number. */
+.room-head{align-items:flex-start;gap:3px}
+.room-head-controls{display:flex;flex-direction:column;align-items:flex-end;gap:4px;min-width:0}
+.room-headcount{appearance:auto;-webkit-appearance:menulist;width:62px;max-width:100%;min-height:27px;margin:0;padding:2px 3px;background:#29405c;color:#eff8ff;border:1px solid #55718d;border-radius:7px;font-size:12px;font-weight:650;line-height:1.2;cursor:pointer}
+.room-headcount:disabled{opacity:.5}
+.room-head-controls>span{font-size:11px;white-space:nowrap}
+@media(max-width:380px){.room-headcount{width:55px;font-size:11px;padding:2px 0}}
