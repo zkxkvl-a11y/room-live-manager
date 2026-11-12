@@ -371,9 +371,9 @@ export default function App() {
           const next=applyCancelRoom(previous,id,at,logId)
           return next?(v2Active?toOperations(next):next):undefined
         },{applyLocally:false})
-        if(!result.committed){alert('이미 종료됐거나 방 상태가 변경됐습니다. 최신 상태를 확인해 주세요.');return}
+        if(!result.committed){alert('진행삭제가 저장되지 않았습니다. 방이 이미 공실인지 확인해 주세요. 계속 실패하면 방 번호를 알려주세요.');return}
         setDetail(null);setCheckout(null);setAdjust(null)
-      }catch(error){setRemoteError('진행삭제 실패: '+String(error));alert('진행삭제 저장에 실패했습니다. 방 상태를 확인해 주세요.')}
+      }catch(error){const message=error instanceof Error?error.message:String(error);setRemoteError('진행삭제 실패: '+message);alert('진행삭제 저장 실패: '+message)}
     }
     transactionQueue.current=transactionQueue.current.then(operation,operation)
   }
