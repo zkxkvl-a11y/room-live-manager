@@ -84,6 +84,7 @@ export default function App() {
   const [chosen, setChosen] = useState<string[]>([])
   const [editing, setEditing] = useState(false)
   const [moving, setMoving] = useState<string | null>(null)
+  const [directMinutes,setDirectMinutes]=useState('')
   const [day, setDay] = useState('')
   const [viewSession, setViewSession] = useState<string | null>(null)
   const [historyRoom, setHistoryRoom] = useState<string | null>(null)
@@ -391,6 +392,26 @@ export default function App() {
     })
     setAdjust(null)
   }
+  function setRemainingMinutes(id:string,input:string){
+    const trimmed=input.trim()
+    if(!/^\\d{1,5}$/.test(trimmed)){alert('남은 시간을 분 단위 숫자로 입력해 주세요. 예: 34');return}
+    const minutes=Number(trimmed)
+    if(minutes<1||minutes>99999){alert('1~99999분 사이로 입력해 주세요.');return}
+    const at=Date.now(),sessionId=crypto.randomUUID(),logId=crypto.randomUUID()
+    setStore(s=>{
+      const room=s.rooms.find(r=>roomKey(r)===id)
+      if(!room)return s
+      const open=s.sessions.filter(x=>sameRoom(x,id)&&x.ended===null)
+      if(open.length>1||(room.started===null&&open.length>0))return s
+      const ends=at+minutes*60000
+      return {...s,
+        rooms:s.rooms.map(r=>roomKey(r)===id?{...r,started:r.started??at,ends}:r),
+        sessions:room.started!==null?s.sessions:[{id:sessionId,room:room.id,roomUid:id,started:at,ended:null},...s.sessions],
+        logs:[{id:logId,at,room:room.id,roomUid:id,action:`남은 시간 직접 설정 ${minutes}분 · 변경 전 ${room.ends?format(room.ends-at):'대기'}`},...s.logs]
+      }
+    })
+    setAdjust(null);setDirectMinutes('')
+  }
   function start(id: string) {
     const at=Date.now(),sessionId=crypto.randomUUID(),logId=crypto.randomUUID()
     setStore(s=>{
@@ -631,7 +652,7 @@ export default function App() {
     {selected && <div className="overlay" onClick={() => setDetail(null)}><section className="modal" onClick={e => e.stopPropagation()}><div className="section"><h2>{selected.id} 상세</h2><button onClick={() => setDetail(null)}>닫기</button></div><div className="large-time">{selected.ends ? format(selected.ends - now) : '대기 중'}</div><p className="hint">{selected.started ? `시작: ${date(selected.started)}` : '시작 전'}</p><div className="buttons"><button onClick={() => selected.ends ? changeTime(roomKey(selected), 60) : start(roomKey(selected))}>{selected.ends ? '+1시간' : '60분 시작'}</button><button onClick={() => { setAdjust(roomKey(selected)); setDetail(null) }}>시간 조절</button>{selected.started && <><button className="checkout-open" onClick={() => { openCheckout(roomKey(selected)) }}>마무리 (결제)</button><button className="danger" onClick={()=>cancelRoom(roomKey(selected))}>진행삭제</button></>}</div><h3>배치된 인원</h3>{selected.tags.map(tag => <div className="tag-row" key={tag}><span>{helperName(tag)}<small>{(() => { const v = store.visits.find(x => x.tag === tag && x.exited === null && sameRoom(x,roomKey(selected))); return v ? ` · 입실 ${date(v.entered)} · ${Math.floor((now - v.entered)/60000)}분 경과` : '' })()}</small></span><button onClick={() => place(tag, null)}>퇴실</button></div>)}{!selected.tags.length && <p className="hint">태그 없음</p>}</section></div>}
     {collectId&&isAdmin&&<div className="overlay" onClick={()=>setCollectId(null)}><section className="modal" onClick={e=>e.stopPropagation()}><div className="section"><h2>미수금 전액 회수</h2><button onClick={()=>setCollectId(null)}>닫기</button></div><p className="hint">{(()=>{const p=store.payments.find(x=>x.id===collectId);return p?p.room+' · '+p.amount.toLocaleString('ko-KR')+'원':'결제 내역 확인 중'})()}</p><h3>회수 수단 선택</h3><div className="pay-methods">{(['현금','카드','이체'] as const).map(m=><button type="button" key={m} className={collectMethod===m?'active':''} onClick={()=>setCollectMethod(m)}>{m}</button>)}</div><label className="amount-label">회수 비고 (선택)<textarea rows={2} maxLength={500} value={collectNote} onChange={e=>setCollectNote(e.target.value)} placeholder="예: 계좌 입금 확인"/></label><button className="pay-submit" disabled={!collectMethod} onClick={collectUnpaid}>선택한 수단으로 전액 회수</button></section></div>}
     {checkout && <div className="overlay" onClick={() => setCheckout(null)}><section className="modal" onClick={e => e.stopPropagation()}><div className="section"><h2>{roomName(checkout)} · 마무리(결제)</h2><button onClick={() => setCheckout(null)}>취소</button></div><p className="hint">결제 수단을 선택하고 금액을 입력한 후 완료하세요. 미수는 실제 수금이 아닌 미수 기록으로 저장됩니다.</p><div className="pay-methods">{(['카드','현금','이체','미수'] as const).map(m => <button key={m} className={payMethod === m ? 'active' : ''} onClick={() => setPayMethod(m)}>{m}</button>)}</div><label className="amount-label">{payMethod === '미수' ? '미수 금액' : '결제금액'} (원)<input inputMode="numeric" type="text" pattern="[0-9]*" placeholder="예: 150000" value={payAmount} onChange={e => setPayAmount(e.target.value.replace(/[^0-9]/g,''))}/></label><label className="amount-label checkout-extra">담당<input type="text" maxLength={80} placeholder="담당자 이름 입력" value={payManager} onChange={e => setPayManager(e.target.value)}/></label>{store.showWari!==false&&<label className="amount-label checkout-extra">와리<input type="text" value={payWari} onChange={e=>setPayWari(e.target.value)} placeholder="와리 입력"/></label>}{store.showWt!==false&&<label className="amount-label checkout-extra">WT<input type="text" value={payWt} onChange={e=>setPayWt(e.target.value)} placeholder="WT 입력"/></label>}<label className="amount-label checkout-extra">비고 (메모)<textarea rows={3} maxLength={1000} placeholder="결제 관련 메모 입력" value={payMemo} onChange={e => setPayMemo(e.target.value)}/></label><button className="pay-submit" disabled={checkoutSaving || !payMethod || !payAmount || Number(payAmount) <= 0} onClick={saveCheckout}>{checkoutSaving?'결제 저장 중...':'완료 · 기록 저장 및 방 마무리'}</button></section></div>}
-    {adjust && <div className="overlay" onClick={() => setAdjust(null)}><section className="modal" onClick={e => e.stopPropagation()}><div className="section"><h2>{roomName(adjust)} 시간 조절</h2><button onClick={() => setAdjust(null)}>닫기</button></div><p className="hint">시간 추가</p><div className="adjust">{[1, 5, 10, 30, 60].map(m => <button className="plus" key={m} onClick={() => changeTime(adjust, m)}>+{m === 60 ? '1시간' : m + '분'}</button>)}</div><p className="hint">시간 차감</p><div className="adjust">{[1, 5, 10, 30, 60].map(m => <button className="minus" key={m} onClick={() => changeTime(adjust, -m)}>-{m === 60 ? '1시간' : m + '분'}</button>)}</div></section></div>}
+    {adjust && <div className="overlay" onClick={() => setAdjust(null)}><section className="modal" onClick={e => e.stopPropagation()}><div className="section"><h2>{roomName(adjust)} 시간 조절</h2><button onClick={() => setAdjust(null)}>닫기</button></div><p className="hint">남은 시간을 분 단위로 직접 입력하세요. 34 입력 시 34분 00초로 설정됩니다.</p><form className="direct-time-form" onSubmit={e=>{e.preventDefault();setRemainingMinutes(adjust,directMinutes)}}><label htmlFor="direct-minutes">남은 시간 (분)</label><input id="direct-minutes" type="number" inputMode="numeric" min="1" max="99999" step="1" placeholder="예: 34" value={directMinutes} onChange={e=>setDirectMinutes(e.target.value)} required/><button type="submit">직접 입력 · 시간 적용</button></form></section></div>}
     {viewSession && <div className="overlay" onClick={() => setViewSession(null)}><section className="modal" onClick={e => e.stopPropagation()}><div className="section"><h2>이용 회차 상세</h2><button onClick={() => setViewSession(null)}>닫기</button></div>{(() => { const x = store.sessions.find(s => s.id === viewSession); if (!x) return null; const next = store.sessions.filter(s => (x.roomUid ? s.roomUid === x.roomUid : s.room === x.room) && s.started > x.started).sort((a,b) => a.started-b.started)[0]; const end = x.ended ?? next?.started ?? now; return <><p>{x.room} · 시작 {date(x.started)}</p><p>종료 {x.ended ? date(x.ended) : '진행 중'} · 경과 {Math.floor((end-x.started)/60000)}분</p><h3>태그 입퇴실</h3>{store.visits.filter(v => (x.roomUid ? v.roomUid === x.roomUid : v.room === x.room) && v.entered >= x.started && v.entered <= end).map(v => <p className="visit" key={v.id}>{helperName(v.tag)} · 입실 {date(v.entered)} · 퇴실 {v.exited ? date(v.exited) : '이용 중'}</p>)}<h3>조작 기록</h3>{store.logs.filter(l => (x.roomUid ? l.roomUid === x.roomUid : l.room === x.room) && l.at >= x.started && l.at <= end).map(l => <p className="visit" key={l.id}>{date(l.at)} · {l.action}</p>)}</> })()}</section></div>}
   </div>
 }
