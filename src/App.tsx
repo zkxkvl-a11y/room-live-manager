@@ -627,7 +627,7 @@ export default function App() {
         return <section key={g.id} className="group-section">
           <div className="section"><h3>{shops.find(sh=>sh.id===g.shopId)?.name} · {g.name}</h3><small>{groupRooms.length}개 방</small></div>
           {editing&&<div className="layout-actions"><button onClick={()=>setStore(v=>({...v,groups:(v.groups??[]).map(x=>x.id===g.id?{...x,layout:[...positions,null,null,null]}:x)}))}>+ 빈 줄</button><button onClick={()=>setStore(v=>({...v,groups:(v.groups??[]).map(x=>{if(x.id!==g.id)return x;const a=[...positions];while(a.length>=3&&a.slice(-3).every(id=>id===null))a.splice(-3);return {...x,layout:a}})}))}>끝 빈 줄 정리</button><button onClick={()=>{setNewRoomGroup(g.id);setNewRoomName('');setRoomError('')}}>+ 방 추가</button></div>}
-          <div className="room-grid three-cols">{positions.map((id,index)=>{
+          <div className="room-grid three-cols">{(editing?positions:positions.filter(id=>id!==null)).map((id,index)=>{
             const r=groupRooms.find(x=>roomKey(x)===id)
             if(!r)return <button key={'empty'+index} className={'empty-slot '+(editing?'editable':'')} disabled={!editing} onClick={()=>{if(moving)move(moving,index)}}>{editing?'＋ 빈칸':''}</button>
             const expired=Boolean(r.ends&&r.ends<=now)
