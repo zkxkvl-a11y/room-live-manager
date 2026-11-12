@@ -150,3 +150,18 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .tc-days button{background:#2a405e;color:#e8f2ff;padding:8px;border-radius:8px;font-size:12px}
 .tc-days button.active{background:#137782}
 @media(max-width:380px){.attendance-list{gap:5px}.attendance-item{padding:6px}.attendance-toggle strong{font-size:13px}.attendance-card-actions .attendance-edit{font-size:9px;padding:6px 1px}}
+
+/* Small destructive action on each attendance tile */
+.attendance-item{position:relative}
+.attendance-delete-x{position:absolute;right:5px;top:5px;width:21px;height:21px;min-height:21px;padding:0;border:1px solid #b94a55;border-radius:6px;background:#7b2634;color:#fff;font-size:17px;line-height:18px;font-weight:700;z-index:1;display:flex;align-items:center;justify-content:center}
+.attendance-delete-x:active{background:#bc3748}
+.attendance-toggle{padding-right:19px;text-align:left}
+.attendance-delete-modal{text-align:center;max-width:380px}
+.attendance-delete-symbol{display:flex;align-items:center;justify-content:center;width:42px;height:42px;margin:0 auto 12px;border-radius:50%;border:2px solid #e75a67;color:#ff6b78;font-size:26px;font-weight:800}
+.attendance-delete-modal h2{margin-bottom:10px}
+.attendance-delete-modal p{line-height:1.55}
+.attendance-delete-modal strong{color:#fff}
+.attendance-delete-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:22px}
+.attendance-delete-actions button{min-height:48px;border-radius:10px;background:#344963;color:#f2f6ff;font-weight:700}
+.attendance-delete-actions .attendance-confirm-delete{background:#b83245;border:1px solid #e75a67;color:#fff}
+.attendance-delete-actions button:disabled{opacity:.55}
