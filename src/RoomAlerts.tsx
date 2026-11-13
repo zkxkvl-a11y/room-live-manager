@@ -9,7 +9,7 @@ function read(uid:string):Preferences{
   try{const raw=localStorage.getItem(storageKey(uid));if(raw){const p=JSON.parse(raw) as Partial<Preferences>;return {enabled:p.enabled===true,shopIds:Array.isArray(p.shopIds)?p.shopIds.filter((x):x is string=>typeof x==='string'):[],ten:p.ten!==false,five:p.five!==false}}}catch{}
   return {enabled:false,shopIds:[],ten:true,five:true}
 }
-export default function RoomAlerts({uid,shops,groups,rooms,now}:{uid:string;shops:Shop[];groups:Group[];rooms:Room[];now:number}){
+export default function RoomAlerts({uid,shops,groups,rooms,now,show,onClose}:{uid:string;shops:Shop[];groups:Group[];rooms:Room[];now:number;show:boolean;onClose:()=>void}){
   const [prefs,setPrefs]=useState<Preferences>(()=>read(uid))
   const [message,setMessage]=useState('')
   const seen=useRef(new Set<string>())
@@ -46,7 +46,7 @@ export default function RoomAlerts({uid,shops,groups,rooms,now}:{uid:string;shop
       else setMessage('알림 권한이 허용되지 않았습니다. 앱 내부 알림은 계속 사용할 수 있습니다.')
     }catch{setMessage('알림 권한 요청에 실패했습니다.')}
   }
-  return <section className="room-alert-settings">
+  return <>{show&&<div className="overlay" onClick={onClose}><section className="modal room-alert-settings" onClick={e=>e.stopPropagation()}><div className="section"><h2>종료 알림 설정</h2><button type="button" onClick={onClose}>닫기</button></div>
     <div className="room-alert-heading"><h3>방 종료 알림</h3><span>앱 실행 중 알림</span></div>
     <p className="hint">선택한 가게의 방 종료 10분·5분 전 알림입니다. 현재는 앱이 열려 있을 때만 동작합니다.</p>
     <label className="room-alert-option"><span>알림 사용</span><input type="checkbox" checked={prefs.enabled} onChange={e=>setPrefs(p=>({...p,enabled:e.target.checked}))}/></label>
@@ -57,5 +57,5 @@ export default function RoomAlerts({uid,shops,groups,rooms,now}:{uid:string;shop
     <label className="room-alert-option"><span>종료 5분 전</span><input type="checkbox" checked={prefs.five} onChange={e=>setPrefs(p=>({...p,five:e.target.checked}))}/></label>
     <div className="room-alert-actions"><button type="button" onClick={requestPermission}>기기 알림 허용</button><span>{permission==='granted'?'알림 허용됨':permission==='denied'?'기기에서 차단됨':permission==='unsupported'?'지원하지 않음':'권한 확인 필요'}</span></div>
     {message&&<div className="room-alert-notice" role="status"><span>{message}</span><button type="button" onClick={()=>setMessage('')}>닫기</button></div>}
-  </section>
+  </section></div>}</>
 }
