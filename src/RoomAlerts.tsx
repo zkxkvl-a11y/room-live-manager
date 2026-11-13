@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Room } from './store-model'
-import { ref, set, remove } from 'firebase/database'
+import { ref, set } from 'firebase/database'
 import { database } from './firebase'
 
 type Shop={id:string;name:string}
