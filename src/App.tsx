@@ -533,7 +533,7 @@ export default function App() {
     setDirectMinutes('')
   }
   function resetRoomToHour(id:string){
-    if(!canOperate||!readyRef.current||remoteState!=='ready)return
+    if(!canOperate||!readyRef.current||remoteState!=='ready')return
     const at=Date.now(),logId=crypto.randomUUID()
     setStore(previous=>{
       const room=previous.rooms.find(r=>roomKey(r)===id)
