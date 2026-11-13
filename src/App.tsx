@@ -441,19 +441,22 @@ export default function App() {
     setStartTimeEdit(null)
   }
   function finishRoom(id:string){
-    if(!canOperate||!readyRef.current)return
-    const at=Date.now(),requestedBy=auth.currentUser?.uid
+    if(!canOperate||!readyRef.current){notify('서버 연결 상태를 확인한 뒤 다시 시도해 주세요.');return}
+    const requestedBy=auth.currentUser?.uid
     const operation=async()=>{
-      if(!requestedBy||auth.currentUser?.uid!==requestedBy||!readyRef.current)return
+      if(!requestedBy||auth.currentUser?.uid!==requestedBy||!readyRef.current){notify('로그인 또는 연결 상태를 확인해 주세요.');return}
       try{
         const target=v2Active?ref(database,OPERATIONS_PATH):roomLiveRef
         const result=await runTransaction(target,current=>{
-          if(!current)return
+          if(current===null)return
           const previous=normalizeRemote(v2Active?{...current,payments:v2PaymentsRef.current} as Store:current as Store)
           const room=previous.rooms.find(r=>(r.uid??r.id)===id)
-          if(!room||room.cleaning||room.started===null)return
-          const sessions=previous.sessions.filter(x=>(x.roomUid?x.roomUid===id:x.room===room.id)&&x.ended===null)
-          if(sessions.length>1)return
+          if(!room||room.cleaning)return
+          // A room may have legacy duplicate open sessions, or only headcount/staff
+          // without a started timer. Neither should prevent completing the run.
+          const hasActivity=room.started!==null||room.ends!==null||(room.headcount??0)>0||room.tags.length>0||room.runStartedAt!==undefined
+          if(!hasActivity)return
+          const at=Date.now()
           const history=captureRoomHistory(previous,id,at,'finish')
           const next:Store={...previous,
             roomHistory:history?[history,...(previous.roomHistory??[])]:previous.roomHistory,
@@ -464,13 +467,18 @@ export default function App() {
           }
           return v2Active?toOperations(next):next
         },{applyLocally:false})
-        if(!result.committed){notify('마무리를 저장하지 못했습니다. 방 상태를 확인해 주세요.');return}
-        setDetail(null);setChosen([]);setPage('rooms')
-      }catch(error){setRemoteError('마무리 실패: '+String(error))}
+        if(!result.committed){notify('마무리되지 않았습니다. 이미 청소대기중이거나 진행 중인 내역이 없는지 확인해 주세요.');return}
+        setDetail(null);setAdjust(null);setChosen([]);setPage('rooms');setRemoteError('')
+      }catch(error){
+        const message=error instanceof Error?error.message:String(error)
+        setRemoteError('마무리 저장 실패: '+message)
+        notify('마무리 저장 실패: '+message)
+      }
     }
     transactionQueue.current=transactionQueue.current.then(operation,operation)
   }
   function clearCleaning(id:string){
+    if(!canOperate||!readyRef.current)return
     setStore(previous=>{
       const room=previous.rooms.find(r=>(r.uid??r.id)===id)
       if(!room?.cleaning)return previous
