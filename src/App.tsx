@@ -63,6 +63,9 @@ export default function App() {
   const [v2Active,setV2Active]=useState(false)
   const v2OperationsRef=useRef<Store|null>(null)
   const v2PaymentsRef=useRef<Payment[]>([])
+  // Firebase Realtime Database rejects undefined anywhere in a transaction payload.
+  // JSON serialization drops optional undefined fields without altering null or timestamps.
+  const firebaseSafe = <T,>(value:T):T => JSON.parse(JSON.stringify(value)) as T
   function setStore(update:Store|((previous:Store)=>Store)) {
     if(!canOperate){notify('현황 옵저버는 조회만 가능합니다.');return}
     if(!readyRef.current){notify('서버 데이터 연결이 완료된 후 수정할 수 있습니다.');return}
@@ -75,7 +78,7 @@ export default function App() {
           if(current===null)return
           const previous=normalizeRemote(v2Active?{...current,payments:v2PaymentsRef.current} as Store:current as Store)
           const next=typeof update==='function'?update(previous):update
-          return v2Active?toOperations(next):next
+          return firebaseSafe(v2Active?toOperations(next):next)
         },{applyLocally:false})
         if(!result.committed)throw Error('서버에 저장되지 않았습니다.')
       }catch(error){setRemoteError('저장 실패: '+(error instanceof Error?error.message:String(error)))}
@@ -460,12 +463,12 @@ export default function App() {
           const history=captureRoomHistory(previous,id,at,'finish')
           const next:Store={...previous,
             roomHistory:history?[history,...(previous.roomHistory??[])]:previous.roomHistory,
-            rooms:previous.rooms.map(r=>(r.uid??r.id)===id?{...r,started:null,ends:null,tags:[],headcount:0,runStartedAt:undefined,cleaning:true,memo:''}:r),
+            rooms:previous.rooms.map(r=>(r.uid??r.id)===id?{...r,started:null,ends:null,tags:[],headcount:0,runStartedAt:null,cleaning:true,memo:''}:r),
             visits:previous.visits.map(v=>v.exited===null&&(v.roomUid?v.roomUid===id:v.room===room.id)?{...v,exited:at}:v),
             sessions:previous.sessions.map(x=>x.ended===null&&(x.roomUid?x.roomUid===id:x.room===room.id)?{...x,ended:at}:x),
             logs:[{id:crypto.randomUUID(),at,room:room.id,roomUid:id,action:'마무리 · 청소대기중'},...previous.logs]
           }
-          return v2Active?toOperations(next):next
+          return firebaseSafe(v2Active?toOperations(next):next)
         },{applyLocally:false})
         if(!result.committed){notify('마무리되지 않았습니다. 이미 청소대기중이거나 진행 중인 내역이 없는지 확인해 주세요.');return}
         setDetail(null);setAdjust(null);setChosen([]);setPage('rooms');setRemoteError('')
@@ -482,7 +485,7 @@ export default function App() {
     setStore(previous=>{
       const room=previous.rooms.find(r=>(r.uid??r.id)===id)
       if(!room?.cleaning)return previous
-      return {...previous,rooms:previous.rooms.map(r=>(r.uid??r.id)===id?{...r,cleaning:false,started:null,ends:null,tags:[],headcount:0,runStartedAt:undefined,memo:''}:r),
+      return {...previous,rooms:previous.rooms.map(r=>(r.uid??r.id)===id?{...r,cleaning:false,started:null,ends:null,tags:[],headcount:0,runStartedAt:null,memo:''}:r),
         logs:[{id:crypto.randomUUID(),at:Date.now(),room:room.id,roomUid:id,action:'청소 완료 · 빈방'},...previous.logs]}
     })
   }
@@ -498,7 +501,7 @@ export default function App() {
           if(!current)return
           const previous=normalizeRemote(v2Active?{...current,payments:v2PaymentsRef.current} as Store:current as Store)
           const next=applyCancelRoom(previous,id,at,logId)
-          return next?(v2Active?toOperations(next):next):undefined
+          return next?firebaseSafe(v2Active?toOperations(next):next):undefined
         },{applyLocally:false})
         if(!result.committed){notify('진행삭제가 저장되지 않았습니다. 방이 이미 공실인지 확인해 주세요. 계속 실패하면 방 번호를 알려주세요.');return}
         setDetail(null);setCheckout(null);setAdjust(null)
@@ -573,7 +576,7 @@ export default function App() {
             rooms:previous.rooms.map(r=>roomKey(r)===id?{...r,ends:end}:r),
             logs:[{id:logId,at,room:room.id,roomUid:id,action:'시간 종료 후 연장 · 남은 시간 60분'},...previous.logs]
           }
-          return v2Active?toOperations(next):next
+          return firebaseSafe(v2Active?toOperations(next):next)
         },{applyLocally:false})
         if(!result.committed)notify('이미 연장되었거나 방 상태가 변경되었습니다.')
       }catch(error){notify('시간 연장 실패: '+String(error))}
@@ -673,7 +676,7 @@ export default function App() {
           const previous=normalizeRemote(v2Active?{...current,payments:v2PaymentsRef.current} as Store:current as Store)
           if(!previous.attendance?.some(h=>h.id===personId))return
           const next={...previous,attendance:previous.attendance.map(h=>h.id===personId?{...h,teamId}:h)}
-          return v2Active?toOperations(next):next
+          return firebaseSafe(v2Active?toOperations(next):next)
         },{applyLocally:false})
         if(!result.committed)throw Error('소속 변경이 서버에 저장되지 않았습니다.')
         const saved=normalizeRemote(result.snapshot.val() as Store)
@@ -753,7 +756,7 @@ export default function App() {
           if(!room)return
           if(room.headcount===count)return
           const next={...previous,rooms:previous.rooms.map(r=>roomKey(r)===id?{...r,headcount:count,runStartedAt:r.runStartedAt??(count>0?at:undefined)}:r),logs:[{id:logId,at,room:room.id,roomUid:id,action:'인원수 '+count+'명 설정'},...previous.logs]}
-          return v2Active?toOperations(next):next
+          return firebaseSafe(v2Active?toOperations(next):next)
         },{applyLocally:false})
         if(!result.committed)throw Error('인원수 저장이 완료되지 않았습니다.')
       }catch(error){const message='인원수 변경 실패: '+String(error);setRemoteError(message);notify(message)}
@@ -790,7 +793,7 @@ export default function App() {
             visits:previous.visits.map(v=>ids.includes(v.tag)&&v.exited===null?{...v,exited:at}:v),
             logs:[...logs,...previous.logs]
           }
-          return v2Active?toOperations(next):next
+          return firebaseSafe(v2Active?toOperations(next):next)
         },{applyLocally:false})
         if(!result.committed)throw Error('이미 퇴실했거나 변경 내용을 저장하지 못했습니다.')
         setChosen([])
