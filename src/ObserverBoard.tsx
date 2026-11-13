@@ -15,7 +15,8 @@ export default function ObserverBoard({snapshot,now,onLogout}:{snapshot:Observer
       {shops.filter(shop=>shopTab==='all'||shop===shopTab).map(shop=><div className="shop-section" key={shop}><div className="shop-divider"><span>{shop}</span></div>{Array.from(new Set(visible.filter(r=>r.shop===shop).map(r=>r.group))).map(group=><section className="group-section" key={group}><div className="section"><h3>{shop} · {group}</h3><small>{visible.filter(r=>r.shop===shop&&r.group===group).length}개 방</small></div><div className="room-grid three-cols">{visible.filter(r=>r.shop===shop&&r.group===group).map(r=>{
         const active=r.started!==null&&r.ends!==null&&!r.cleaning
         const remaining=active?Math.max(0,(r.ends??0)-now):0
-        return <button type="button" key={r.uid} className={'observer-room-tile '+(active?'observer-room-active':'')+(r.cleaning?' observer-room-cleaning':'')} onClick={()=>setDetail(r)}>
+        const stateClass=r.cleaning?'':active?(remaining<=180000?'room-state-critical':remaining<=600000?'room-state-warning':'room-state-active'):r.headcount?'room-state-choice':''
+        return <button type="button" key={r.uid} className={'room observer-room-tile '+stateClass+(r.cleaning?' observer-room-cleaning':'')} onClick={()=>setDetail(r)}>
           <div className="observer-tile-top"><strong>{r.name}</strong><small>{r.headcount? r.headcount+'명':'인원'}</small></div>
           <span className="observer-tile-state">{r.cleaning?'청소대기중':active?'진행 중':r.headcount?'초이스 대기 중':'대기'}</span>
           <strong className="observer-tile-time">{r.cleaning?'청소대기':active?format(remaining):'--:--:--'}</strong>
