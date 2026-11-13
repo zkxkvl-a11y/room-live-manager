@@ -411,7 +411,7 @@ export default function App() {
       const activeSession=activeSessions[0]
       if(activeSessions.length!==1||!activeSession)return previous
       return {...previous,
-        rooms:previous.rooms.map(r=>roomKey(r)===sourceId?{...r,started:null,ends:null,tags:[],headcount:0,memo:''}:roomKey(r)===targetId?{...r,started:source.started,ends:source.ends,tags:[...source.tags],headcount:source.headcount??0,memo:source.memo??''}:r),
+        rooms:previous.rooms.map(r=>roomKey(r)===sourceId?{...r,started:null,ends:null,tags:[],headcount:0,runStartedAt:undefined,memo:''}:roomKey(r)===targetId?{...r,started:source.started,ends:source.ends,tags:[...source.tags],headcount:source.headcount??0,memo:source.memo??''}:r),
         visits:previous.visits.map(v=>v.exited===null&&matches(v,sourceId)?{...v,room:target.id,roomUid:targetId}:v),
         sessions:previous.sessions.map(x=>x.id===activeSession.id?{...x,room:target.id,roomUid:targetId}:x),
         logs:[{id:crypto.randomUUID(),at,room:target.id,roomUid:targetId,action:source.id+' → '+target.id+' 방 이동'},...previous.logs]}
@@ -457,7 +457,7 @@ export default function App() {
           const history=captureRoomHistory(previous,id,at,'finish')
           const next:Store={...previous,
             roomHistory:history?[history,...(previous.roomHistory??[])]:previous.roomHistory,
-            rooms:previous.rooms.map(r=>(r.uid??r.id)===id?{...r,started:null,ends:null,tags:[],headcount:0,cleaning:true,memo:''}:r),
+            rooms:previous.rooms.map(r=>(r.uid??r.id)===id?{...r,started:null,ends:null,tags:[],headcount:0,runStartedAt:undefined,cleaning:true,memo:''}:r),
             visits:previous.visits.map(v=>v.exited===null&&(v.roomUid?v.roomUid===id:v.room===room.id)?{...v,exited:at}:v),
             sessions:previous.sessions.map(x=>x.ended===null&&(x.roomUid?x.roomUid===id:x.room===room.id)?{...x,ended:at}:x),
             logs:[{id:crypto.randomUUID(),at,room:room.id,roomUid:id,action:'마무리 · 청소대기중'},...previous.logs]
@@ -474,7 +474,7 @@ export default function App() {
     setStore(previous=>{
       const room=previous.rooms.find(r=>(r.uid??r.id)===id)
       if(!room?.cleaning)return previous
-      return {...previous,rooms:previous.rooms.map(r=>(r.uid??r.id)===id?{...r,cleaning:false,started:null,ends:null,tags:[],headcount:0,memo:''}:r),
+      return {...previous,rooms:previous.rooms.map(r=>(r.uid??r.id)===id?{...r,cleaning:false,started:null,ends:null,tags:[],headcount:0,runStartedAt:undefined,memo:''}:r),
         logs:[{id:crypto.randomUUID(),at:Date.now(),room:room.id,roomUid:id,action:'청소 완료 · 빈방'},...previous.logs]}
     })
   }
@@ -720,7 +720,7 @@ export default function App() {
           const room=previous.rooms.find(r=>roomKey(r)===id)
           if(!room)return
           if(room.headcount===count)return
-          const next={...previous,rooms:previous.rooms.map(r=>roomKey(r)===id?{...r,headcount:count}:r),logs:[{id:logId,at,room:room.id,roomUid:id,action:'인원수 '+count+'명 설정'},...previous.logs]}
+          const next={...previous,rooms:previous.rooms.map(r=>roomKey(r)===id?{...r,headcount:count,runStartedAt:r.runStartedAt??(count>0?at:undefined)}:r),logs:[{id:logId,at,room:room.id,roomUid:id,action:'인원수 '+count+'명 설정'},...previous.logs]}
           return v2Active?toOperations(next):next
         },{applyLocally:false})
         if(!result.committed)throw Error('인원수 저장이 완료되지 않았습니다.')
