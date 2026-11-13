@@ -514,7 +514,7 @@ export default function App() {
       if(!room||room.cleaning||(!room.ends&&minutes<0))return s
       const openSessions=s.sessions.filter(x=>sameRoom(x,id)&&x.ended===null)
       if(openSessions.length>1||(room.started===null&&openSessions.length>0))return s
-      const nextEnd=Math.max(time+60000,(room.ends??time)+minutes*60000)
+      const nextEnd=Math.max(time,(room.ends??time)+minutes*60000)
       return {...s,
         rooms:s.rooms.map(r=>roomKey(r)!==id?r:{...r,started:r.started??time,ends:nextEnd}),
         logs:[{id:logId,at:time,room:room.id,roomUid:id,action:`시간 ${minutes>0?'+':''}${minutes}분 · 변경 전 ${room.ends?format(room.ends-time):'대기'} → 변경 후 ${format(nextEnd-time)}`},...s.logs],
