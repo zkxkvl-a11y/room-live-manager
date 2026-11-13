@@ -1,4 +1,5 @@
 import type { Log, Store } from '../store-model'
+import { captureRoomHistory } from './room-history'
 
 // Retry-safe, idempotent room cancellation. No payment is created.
 export function applyCancelRoom(previous:Store, roomUid:string, at:number, logId:string):Store|undefined {
@@ -14,7 +15,9 @@ export function applyCancelRoom(previous:Store, roomUid:string, at:number, logId
     {id:logId,at,room:room.id,roomUid,action:'진행삭제 · 결제 없이 종료'},
     ...room.tags.map((tag,i)=>({id:logId+'-exit-'+i,at,room:room.id,roomUid,action:tag+' 퇴실 · 진행삭제'}))
   ]
+  const history=captureRoomHistory(previous,roomUid,at,'cancel')
   return {...previous,
+    roomHistory:history?[history,...(previous.roomHistory??[])]:previous.roomHistory,
     rooms:previous.rooms.map(r=>(r.uid??r.id)===roomUid?{...r,started:null,ends:null,tags:[],headcount:0,memo:''}:r),
     sessions:previous.sessions.map(s=>sameRoom(s)&&s.ended===null?{...s,ended:at}:s),
     visits:previous.visits.map(v=>sameRoom(v)&&v.exited===null?{...v,exited:at}:v),
