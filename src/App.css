@@ -551,3 +551,8 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .expired-room-actions button{min-width:0;padding:11px 3px;border-radius:9px;font-size:clamp(12px,3vw,15px);font-weight:800;color:#fff;touch-action:manipulation}
 .expired-room-actions .expired-extend{background:#246f9e;border:1px solid #4b94c2}
 .expired-room-actions .expired-finish{background:#147d72;border:1px solid #39a89a}
+
+/* Keep expired room actions above a separate, wrapping staff row. */
+.room-inline-staff .room-staff-after-actions{display:flex;flex-wrap:wrap;align-items:center;gap:5px;width:100%;min-width:0}
+.room-inline-staff .room-staff-after-actions .room-staff-choice{flex:0 0 auto}
+.room-inline-staff .room-no-staff{font-size:12px;color:#c0d0e3}
