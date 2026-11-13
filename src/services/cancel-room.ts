@@ -18,7 +18,7 @@ export function applyCancelRoom(previous:Store, roomUid:string, at:number, logId
   const history=captureRoomHistory(previous,roomUid,at,'cancel')
   return {...previous,
     roomHistory:history?[history,...(previous.roomHistory??[])]:previous.roomHistory,
-    rooms:previous.rooms.map(r=>(r.uid??r.id)===roomUid?{...r,started:null,ends:null,tags:[],headcount:0,memo:''}:r),
+    rooms:previous.rooms.map(r=>(r.uid??r.id)===roomUid?{...r,started:null,ends:null,tags:[],headcount:0,runStartedAt:undefined,memo:''}:r),
     sessions:previous.sessions.map(s=>sameRoom(s)&&s.ended===null?{...s,ended:at}:s),
     visits:previous.visits.map(v=>sameRoom(v)&&v.exited===null?{...v,exited:at}:v),
     logs:[...logs,...previous.logs]
