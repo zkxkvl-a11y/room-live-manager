@@ -27,7 +27,10 @@ export default function RoomAlerts({uid,shops,groups,rooms,now,show,onClose}:{ui
         if(!active||remaining>minutes*60000||remaining<=(minutes-1)*60000)continue
         const key=[uid,room.uid??room.id,room.started,room.ends,minutes].join(':')
         if(seen.current.has(key))continue
+        const persistedKey='room-live-alert-fired:'+key
+        try{if(localStorage.getItem(persistedKey)==='1'){seen.current.add(key);continue}}catch{}
         seen.current.add(key)
+        try{localStorage.setItem(persistedKey,'1')}catch{}
         const shopName=shops.find(s=>s.id===shopId)?.name??'가게'
         const body=shopName+' · '+room.id+' · 종료 '+minutes+'분 전'
         setMessage(body)
@@ -46,7 +49,7 @@ export default function RoomAlerts({uid,shops,groups,rooms,now,show,onClose}:{ui
       else setMessage('알림 권한이 허용되지 않았습니다. 앱 내부 알림은 계속 사용할 수 있습니다.')
     }catch{setMessage('알림 권한 요청에 실패했습니다.')}
   }
-  return <>{show&&<div className="overlay" onClick={onClose}><section className="modal room-alert-settings" onClick={e=>e.stopPropagation()}><div className="section"><h2>종료 알림 설정</h2><button type="button" onClick={onClose}>닫기</button></div>
+  return <>{message&&!show&&<div className="room-alert-floating" role="status"><span>{message}</span><button type="button" onClick={()=>setMessage('')}>닫기</button></div>}{show&&<div className="overlay" onClick={onClose}><section className="modal room-alert-settings" onClick={e=>e.stopPropagation()}><div className="section"><h2>종료 알림 설정</h2><button type="button" onClick={onClose}>닫기</button></div>
     <div className="room-alert-heading"><h3>방 종료 알림</h3><span>앱 실행 중 알림</span></div>
     <p className="hint">선택한 가게의 방 종료 10분·5분 전 알림입니다. 현재는 앱이 열려 있을 때만 동작합니다.</p>
     <label className="room-alert-option"><span>알림 사용</span><input type="checkbox" checked={prefs.enabled} onChange={e=>setPrefs(p=>({...p,enabled:e.target.checked}))}/></label>
