@@ -401,3 +401,27 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .room-memo-controls button{flex:0 0 auto;min-width:64px;border-radius:8px;background:#237e82;color:#fff;font-weight:750;padding:7px 12px}
 .room-memo-controls button:disabled{opacity:.5}
 .room-board .room-tile-memo{min-width:0;width:100%;box-sizing:border-box;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:#344158;color:#ffe1a0;border-radius:5px;padding:3px 5px;font-size:11px;font-weight:650;line-height:1.35}
+
+/* Room memo and operations controls: consistent with the ROOM LIVE dark palette. */
+.room-memo-editor{background:#233550;border:1px solid #425d7c;border-radius:11px;padding:10px 11px;margin:10px 0}
+.room-memo-editor>label{display:block;color:#d6e5f5;font-size:14px;font-weight:800;margin:0 0 8px}
+.room-memo-controls{display:flex;align-items:stretch;gap:8px}
+.room-memo-controls input{background:#14243b!important;color:#f1f7ff!important;border:1px solid #5c7899!important;border-radius:9px!important;min-width:0;min-height:44px;padding:10px 12px;font-size:14px}
+.room-memo-controls input::placeholder{color:#93a9c3}
+.room-memo-controls button{background:#147d79!important;color:#fff!important;border:1px solid #269d94!important;min-width:66px;min-height:44px;border-radius:9px!important;font-size:14px;font-weight:800}
+.room-memo-controls button:disabled{opacity:.5}
+.room-start-line{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#b9c9df;font-size:12px;margin:8px 0}
+.room-start-line>span{min-width:0}
+.room-start-line button{flex-shrink:0;min-height:32px;padding:5px 9px;border-radius:8px;background:#304d70;color:#e2efff;border:1px solid #547195;font-size:12px;font-weight:700}
+.modal .buttons .room-move-button{background:#425d82;color:#fff}
+.room-operation-modal{max-width:430px;width:calc(100% - 32px);box-sizing:border-box}
+.room-operation-modal h2{margin:0 0 12px}
+.room-operation-modal>label{display:block;margin:12px 0 6px;font-size:13px;font-weight:700;color:#d5e6f7}
+.room-operation-modal input[type=time]{width:100%;min-height:48px;box-sizing:border-box;background:#14243b;color:#fff;border:1px solid #5c7899;border-radius:9px;padding:8px 12px;font-size:18px}
+.room-move-targets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;max-height:230px;overflow-y:auto;margin:14px 0}
+.room-move-targets button{min-height:44px;background:#283f60;border:1px solid #4c688b;border-radius:9px;color:#fff;font-weight:800}
+.room-move-targets button.selected{background:#147d79;border-color:#6ee1ce}
+.room-modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:15px}
+.room-modal-actions button{min-height:44px;border-radius:9px;background:#324965;color:#fff;font-weight:750}
+.room-modal-actions button:last-child{background:#147d79}
+.room-modal-actions button:disabled{opacity:.45}
