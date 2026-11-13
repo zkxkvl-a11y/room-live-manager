@@ -463,7 +463,7 @@ export default function App() {
           const history=captureRoomHistory(previous,id,at,'finish')
           const next:Store={...previous,
             roomHistory:history?[history,...(previous.roomHistory??[])]:previous.roomHistory,
-            rooms:previous.rooms.map(r=>(r.uid??r.id)===id?{...r,started:null,ends:null,tags:[],headcount:0,runStartedAt:null,cleaning:true,memo:''}:r),
+            rooms:previous.rooms.map(r=>(r.uid??r.id)===id?{...r,started:null,ends:null,tags:[],headcount:0,runStartedAt:undefined,cleaning:true,memo:''}:r),
             visits:previous.visits.map(v=>v.exited===null&&(v.roomUid?v.roomUid===id:v.room===room.id)?{...v,exited:at}:v),
             sessions:previous.sessions.map(x=>x.ended===null&&(x.roomUid?x.roomUid===id:x.room===room.id)?{...x,ended:at}:x),
             logs:[{id:crypto.randomUUID(),at,room:room.id,roomUid:id,action:'마무리 · 청소대기중'},...previous.logs]
@@ -485,7 +485,7 @@ export default function App() {
     setStore(previous=>{
       const room=previous.rooms.find(r=>(r.uid??r.id)===id)
       if(!room?.cleaning)return previous
-      return {...previous,rooms:previous.rooms.map(r=>(r.uid??r.id)===id?{...r,cleaning:false,started:null,ends:null,tags:[],headcount:0,runStartedAt:null,memo:''}:r),
+      return {...previous,rooms:previous.rooms.map(r=>(r.uid??r.id)===id?{...r,cleaning:false,started:null,ends:null,tags:[],headcount:0,runStartedAt:undefined,memo:''}:r),
         logs:[{id:crypto.randomUUID(),at:Date.now(),room:room.id,roomUid:id,action:'청소 완료 · 빈방'},...previous.logs]}
     })
   }
