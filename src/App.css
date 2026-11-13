@@ -392,3 +392,12 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .app>nav.nav-four>button{width:100%;min-width:0;min-height:64px;padding:9px 4px 8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;font-size:25px;line-height:1.1;touch-action:manipulation}
 .app>nav.nav-four>button span{font-size:clamp(11px,3.1vw,13px);font-weight:650;line-height:1.25;white-space:nowrap}
 @media(max-width:360px){.app>nav.nav-four>button{min-height:60px;padding:8px 2px}.app>nav.nav-four>button span{font-size:11px}}
+
+/* Room-scoped short memo: editable in details, single-line preview in tiles. */
+.room-memo-editor{margin:12px 0 10px;display:flex;flex-direction:column;gap:6px}
+.room-memo-editor>label{font-size:13px;font-weight:700;color:#c6d9ed}
+.room-memo-controls{display:flex;gap:7px;align-items:stretch;min-width:0}
+.room-memo-controls input{flex:1 1 auto;min-width:0;min-height:42px;border-radius:8px;background:#17263b;color:#fff;border:1px solid #536b8b;padding:9px 10px;font-size:14px}
+.room-memo-controls button{flex:0 0 auto;min-width:64px;border-radius:8px;background:#237e82;color:#fff;font-weight:750;padding:7px 12px}
+.room-memo-controls button:disabled{opacity:.5}
+.room-board .room-tile-memo{min-width:0;width:100%;box-sizing:border-box;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:#344158;color:#ffe1a0;border-radius:5px;padding:3px 5px;font-size:11px;font-weight:650;line-height:1.35}
