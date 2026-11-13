@@ -444,3 +444,26 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 
 .room-alert-floating{position:fixed;z-index:10000;top:calc(env(safe-area-inset-top,0px) + 62px);left:12px;right:12px;max-width:450px;margin:0 auto;background:#184d55;border:1px solid #47c1b3;color:#fff;box-shadow:0 12px 30px #0008;border-radius:12px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-weight:750;font-size:14px}
 .room-alert-floating button{flex:0 0 auto;border-radius:7px;background:#286875;color:#fff;padding:7px 10px}
+
+/* Read-only observer: same compact shop and three-column room board as operations. */
+.observer-mode .observer-role-tag{font-size:11px;font-weight:800;color:#9ed6e6;white-space:nowrap}
+.observer-readonly-label{font-size:12px;color:#a9c4d9;font-weight:700}
+.observer-mode .observer-staff-tag{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:6px 11px;border:1px solid #536d8e;background:#2a405f;color:#fff;border-radius:9px;font-size:14px;font-weight:800}
+.observer-room-tile{box-sizing:border-box;width:100%;min-width:0;min-height:185px;text-align:left;display:flex;flex-direction:column;gap:7px;border:1px solid #3b5476;border-radius:17px;background:#1e2d49;color:#f3f7ff;padding:11px;overflow:hidden}
+.observer-room-tile.observer-room-active{border:2px solid #35c9a0;background:#143a3d;padding:10px}
+.observer-room-tile.observer-room-cleaning{border-color:#bc9254}
+.observer-tile-top{display:flex;align-items:center;justify-content:space-between;gap:4px}
+.observer-tile-top strong{font-size:23px;line-height:1.1}
+.observer-tile-top small{font-size:12px;font-weight:800;border:1px solid #54718f;border-radius:8px;padding:6px;background:#2b4663}
+.observer-tile-state{font-size:11px;text-align:right;color:#a9bdd3;min-height:13px}
+.observer-room-active .observer-tile-state{color:#5ddbb4}
+.observer-tile-time{display:block;font-size:24px;text-align:center;font-variant-numeric:tabular-nums;line-height:1.25;white-space:nowrap}
+.observer-tile-memo{background:#34405d;border-radius:6px;color:#ffdb91;font-size:11px;font-weight:700;padding:5px 6px;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;max-width:100%}
+.observer-tile-staff{display:flex;flex-wrap:wrap;gap:5px}
+.observer-tile-staff span{border:1px solid #597493;background:#2a4260;color:#f4f8ff;border-radius:8px;font-size:15px;font-weight:800;padding:7px 8px}
+.observer-tile-staff small{font-size:12px;color:#d5e0ee;font-weight:700}
+.observer-bottom{grid-template-columns:repeat(2,minmax(0,1fr))}
+.observer-detail{background:#1e2d49;color:#f1f7ff;max-height:85dvh;overflow-y:auto}
+.observer-detail-time{font-size:40px;font-weight:900;text-align:center;font-variant-numeric:tabular-nums;margin:22px 0}
+.observer-detail-memo{border-radius:8px;background:#334561;color:#ffe4a0;padding:12px;overflow-wrap:anywhere}
+@media(max-width:380px){.observer-room-tile{padding:7px;min-height:168px}.observer-room-tile.observer-room-active{padding:6px}.observer-tile-top strong{font-size:20px}.observer-tile-time{font-size:19px}.observer-tile-staff span{font-size:13px;padding:5px}.observer-tile-top small{padding:4px}}
