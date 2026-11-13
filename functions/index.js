@@ -66,3 +66,5 @@ exports.publishObserver=onValueWritten({ref:BASE+'/operations',region:'asia-sout
   })
   await getDatabase().ref('roomLiveObserver').set({rooms,updatedAt:Date.now()})
 })
+
+exports.roomDeadlinePush=require('./room-deadline-push').roomDeadlinePush
