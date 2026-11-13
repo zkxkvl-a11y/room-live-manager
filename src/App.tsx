@@ -411,7 +411,7 @@ export default function App() {
       const activeSession=activeSessions[0]
       if(activeSessions.length!==1||!activeSession)return previous
       return {...previous,
-        rooms:previous.rooms.map(r=>roomKey(r)===sourceId?{...r,started:null,ends:null,tags:[],headcount:0,runStartedAt:undefined,memo:''}:roomKey(r)===targetId?{...r,started:source.started,ends:source.ends,tags:[...source.tags],headcount:source.headcount??0,memo:source.memo??''}:r),
+        rooms:previous.rooms.map(r=>roomKey(r)===sourceId?{...r,started:null,ends:null,tags:[],headcount:0,runStartedAt:undefined,memo:''}:roomKey(r)===targetId?{...r,started:source.started,ends:source.ends,tags:[...source.tags],headcount:source.headcount??0,runStartedAt:source.runStartedAt??source.started??undefined,memo:source.memo??''}:r),
         visits:previous.visits.map(v=>v.exited===null&&matches(v,sourceId)?{...v,room:target.id,roomUid:targetId}:v),
         sessions:previous.sessions.map(x=>x.id===activeSession.id?{...x,room:target.id,roomUid:targetId}:x),
         logs:[{id:crypto.randomUUID(),at,room:target.id,roomUid:targetId,action:source.id+' → '+target.id+' 방 이동'},...previous.logs]}
