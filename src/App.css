@@ -528,3 +528,16 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .history-event-list time{min-width:45px;color:#8bc8e6;font-variant-numeric:tabular-nums}
 .history-muted,.history-empty{color:#9fb4cf;font-size:14px}
 .history-empty{text-align:center;margin:38px 0}
+
+/* Vacancy chips match assigned staff chips, with red text and a dashed outline. */
+.room-inline-staff .room-staff-vacancy,
+.observer-tile-staff .room-staff-vacancy{
+  display:inline-flex;align-items:center;justify-content:center;
+  border:1px dashed #6682a3;background:#283e5a;
+  color:#ff6974;border-radius:9px;padding:9px 13px;
+  min-height:39px;font-size:inherit;font-weight:800;
+  line-height:normal;white-space:nowrap;cursor:default;
+}
+.observer-tile-staff .room-staff-vacancy{
+  padding:7px 8px;min-height:0;font-size:15px;
+}
