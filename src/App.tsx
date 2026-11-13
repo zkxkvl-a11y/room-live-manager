@@ -379,7 +379,6 @@ export default function App() {
   const duplicated=(name:string,shopId:string,exclude?:string)=>store.rooms.some(r=>r.id.toLocaleUpperCase()===name.toLocaleUpperCase()&&shopFor(r)===shopId&&roomKey(r)!==exclude)
   const renameShop=(id:string)=>{const current=shops.find(x=>x.id===id);if(!current)return;askInput('가게 이름 변경',current.name,value=>{const name=value.trim();if(!name)return;if(shops.some(x=>x.id!==id&&x.name.toLocaleLowerCase()===name.toLocaleLowerCase())){setRemoteError('이미 등록된 가게 이름입니다.');return}setStore(v=>({...v,shops:(v.shops??[]).map(x=>x.id===id?{...x,name}:x)}))})}
   const groups = store.groups ?? seed.groups!
-  const openCheckout = (id: string) => { setCheckout(id); setPayMethod(null); setPayAmount(''); setPayManager(''); setPayMemo(''); setPayWari(''); setPayWt(''); setDetail(null) }
   function finishRoom(id:string){
     if(!canOperate||!readyRef.current)return
     const at=Date.now(),requestedBy=auth.currentUser?.uid
@@ -444,7 +443,7 @@ export default function App() {
       if(!room||room.cleaning||(!room.ends&&minutes<0))return s
       const openSessions=s.sessions.filter(x=>sameRoom(x,id)&&x.ended===null)
       if(openSessions.length>1||(room.started===null&&openSessions.length>0))return s
-      const nextEnd=Math.max(time,(room.ends??time)+minutes*60000)
+      const nextEnd=Math.max(time+60000,(room.ends??time)+minutes*60000)
       return {...s,
         rooms:s.rooms.map(r=>roomKey(r)!==id?r:{...r,started:r.started??time,ends:nextEnd}),
         logs:[{id:logId,at:time,room:room.id,roomUid:id,action:`시간 ${minutes>0?'+':''}${minutes}분 · 변경 전 ${room.ends?format(room.ends-time):'대기'} → 변경 후 ${format(nextEnd-time)}`},...s.logs],
