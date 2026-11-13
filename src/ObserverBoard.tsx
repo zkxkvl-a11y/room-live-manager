@@ -22,7 +22,7 @@ export default function ObserverBoard({snapshot,now,onLogout}:{snapshot:Observer
           <span className="observer-tile-state">{r.cleaning?'청소대기중':active?'진행 중':r.headcount?'초이스 대기 중':'대기'}</span>
           <strong className="observer-tile-time">{r.cleaning?'청소대기':active?format(remaining):'--:--:--'}</strong>
           {r.memo&&<span className="observer-tile-memo">📝 {r.memo}</span>}
-          <div className="observer-tile-staff">{(r.staffNames??[]).map((name,i)=><span key={i}>{name}</span>)}{!r.staffNames?.length&&<small>배치 인원 없음</small>}</div>
+          <div className="observer-tile-staff">{(r.staffNames??[]).map((name,i)=><span key={i}>{name}</span>)}{!r.cleaning&&Array.from({length:Math.max(0,(r.headcount??0)-(r.staffNames??[]).length)},(_,i)=><span key={'vacancy-'+i} className="room-staff-vacancy" aria-label="부족 인원 1명">빵꾸</span>)}{!r.staffNames?.length&&!(r.headcount??0)&&<small>배치 인원 없음</small>}</div>
         </button>
       })}</div></section>)}</div>)}
       {!shops.length&&<p className="hint">표시할 방이 없습니다.</p>}
