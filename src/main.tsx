@@ -3,10 +3,11 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
+import SafeUpdate from './SafeUpdate.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AppErrorBoundary><App /></AppErrorBoundary>
+    <AppErrorBoundary><App /><SafeUpdate /></AppErrorBoundary>
   </StrictMode>,
 )
 
