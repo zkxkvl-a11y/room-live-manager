@@ -347,3 +347,14 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .app-dialog-actions .app-dialog-danger{background:#ae3e51}
 .app-dialog-actions .app-dialog-accept{background:#147e7d}
 .app-dialog-actions button:disabled{opacity:.45}
+
+/* Attendance-first room lifecycle: cleaning is a distinct, persistent state. */
+.room.room-state-cleaning{background:#3a2b1c;border:2px solid #d99b3c;box-shadow:inset 0 0 0 1px #a8732c}
+.room.room-state-cleaning .room-head strong,.room.room-state-cleaning .time{color:#ffd28a}
+.room.room-state-cleaning .time{font-size:clamp(12px,3.1vw,17px);font-weight:800;letter-spacing:-.02em}
+.room-cleaning-message{color:#ffd28a;font-size:11px;text-align:center;margin:8px 0}
+.quick-time-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-top:14px}
+.quick-time-grid button{min-width:0;min-height:38px;padding:6px 2px;font-size:clamp(10px,2.3vw,12px);font-weight:700;border-radius:8px;border:1px solid transparent;white-space:nowrap}
+.quick-time-grid .quick-time-plus{background:#194d47;color:#c1f8df;border-color:#2d7468}
+.quick-time-grid .quick-time-minus{background:#52303b;color:#ffd5db;border-color:#794652}
+@media(max-width:360px){.quick-time-grid{gap:4px}.quick-time-grid button{font-size:10px;padding:5px 1px}}
