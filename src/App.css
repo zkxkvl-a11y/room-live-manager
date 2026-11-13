@@ -541,3 +541,13 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .observer-tile-staff .room-staff-vacancy{
   padding:7px 8px;min-height:0;font-size:15px;
 }
+
+/* Live remaining time inside the quick adjustment sheet. */
+.adjust-live-clock{display:flex;flex-direction:column;align-items:center;gap:7px;margin:10px 0 17px;padding:12px 8px;border-radius:13px;background:#182c47;border:1px solid #415a78}
+.adjust-live-clock span{font-size:13px;color:#b9cbe0}
+.adjust-live-clock strong{font-size:clamp(32px,9vw,48px);line-height:1.15;letter-spacing:.02em;font-variant-numeric:tabular-nums;color:#f5f8ff}
+/* Keep the expired-room controls inside the same staff tile area. */
+.room-inline-staff .expired-room-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;width:100%}
+.expired-room-actions button{min-width:0;padding:11px 3px;border-radius:9px;font-size:clamp(12px,3vw,15px);font-weight:800;color:#fff;touch-action:manipulation}
+.expired-room-actions .expired-extend{background:#246f9e;border:1px solid #4b94c2}
+.expired-room-actions .expired-finish{background:#147d72;border:1px solid #39a89a}
