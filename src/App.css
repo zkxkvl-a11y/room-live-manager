@@ -467,3 +467,20 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .observer-detail-time{font-size:40px;font-weight:900;text-align:center;font-variant-numeric:tabular-nums;margin:22px 0}
 .observer-detail-memo{border-radius:8px;background:#334561;color:#ffe4a0;padding:12px;overflow-wrap:anywhere}
 @media(max-width:380px){.observer-room-tile{padding:7px;min-height:168px}.observer-room-tile.observer-room-active{padding:6px}.observer-tile-top strong{font-size:20px}.observer-tile-time{font-size:19px}.observer-tile-staff span{font-size:13px;padding:5px}.observer-tile-top small{padding:4px}}
+
+/* Use exactly the same animated room state layers for read-only observers. */
+.room-board .observer-room-tile.room-state-active,
+.room-board .observer-room-tile.room-state-warning,
+.room-board .observer-room-tile.room-state-critical,
+.room-board .observer-room-tile.room-state-choice{border-width:2px;padding:10px}
+.room-board .observer-room-tile.room-state-choice{border-color:#4ac6ed}
+.room-board .observer-room-tile.room-state-active{border-color:#238b78}
+.room-board .observer-room-tile.room-state-warning{border-color:#d58b31}
+.room-board .observer-room-tile.room-state-critical{border-color:#e3475b}
+.room-board .observer-room-tile.room-state-choice::after,
+.room-board .observer-room-tile.room-state-active::after,
+.room-board .observer-room-tile.room-state-warning::after,
+.room-board .observer-room-tile.room-state-critical::after{border-radius:13px}
+.safe-update-notice{position:fixed;z-index:10005;bottom:calc(80px + env(safe-area-inset-bottom,0px));left:12px;right:12px;max-width:550px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 12px;background:#243b56;color:#edf7ff;border:1px solid #52749b;border-radius:11px;box-shadow:0 8px 24px #0009;font-size:12px;line-height:1.4}
+.safe-update-notice button{flex-shrink:0;background:#247f82;color:white;border-radius:8px;padding:9px 11px;font-weight:800}
+@media(max-width:380px){.room-board .observer-room-tile.room-state-active,.room-board .observer-room-tile.room-state-warning,.room-board .observer-room-tile.room-state-critical,.room-board .observer-room-tile.room-state-choice{padding:6px}}
