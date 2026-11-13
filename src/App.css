@@ -425,3 +425,19 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .room-modal-actions button{min-height:44px;border-radius:9px;background:#324965;color:#fff;font-weight:750}
 .room-modal-actions button:last-child{background:#147d79}
 .room-modal-actions button:disabled{opacity:.45}
+
+/* Optional shop-specific room expiry alert settings */
+.room-alert-launch{flex:0 0 auto;border:1px solid #3f5776;border-radius:9px;background:#263d5b;color:#e6f3ff;min-width:35px;min-height:35px;padding:4px 7px;font-size:19px}
+.room-alert-settings{width:min(420px,calc(100vw - 28px));max-height:78dvh;overflow:auto;box-sizing:border-box;background:#1e2d49;color:#f1f7ff;border-radius:16px;padding:18px}
+.room-alert-settings .section{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.room-alert-settings .section h2{font-size:20px;margin:0}
+.room-alert-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.room-alert-heading h3{font-size:16px;margin:6px 0}
+.room-alert-heading span{font-size:11px;color:#9fb9d6}
+.room-alert-label{font-weight:800;font-size:13px;margin:12px 0 4px;color:#c9ddf2}
+.room-alert-option{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:42px;padding:6px 10px;border-radius:9px;background:#17273f;margin:5px 0;font-size:14px}
+.room-alert-option input{width:19px;height:19px;accent-color:#19a095;flex:0 0 auto}
+.room-alert-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px}
+.room-alert-actions button{min-height:40px;background:#147d79;border-radius:8px;color:#fff;font-weight:800;padding:8px 12px}
+.room-alert-actions span{font-size:12px;color:#c0d4e9}
+.room-alert-notice{margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;background:#254e59;padding:10px;border-radius:8px;font-size:13px}
