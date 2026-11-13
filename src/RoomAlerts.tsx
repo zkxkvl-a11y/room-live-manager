@@ -34,7 +34,7 @@ export default function RoomAlerts({uid,shops,groups,rooms,now,show,onClose}:{ui
   const [permission,setPermission]=useState(typeof Notification==='undefined'?'unsupported':Notification.permission)
   useEffect(()=>{setPrefs(read(uid));seen.current.clear()},[uid])
   useEffect(()=>{try{localStorage.setItem(storageKey(uid),JSON.stringify(prefs))}catch{}},[uid,prefs])
-  useEffect(()=>{if(Notification.permission!=='granted'||!vapidPublicKey)return;savePushSubscription(uid,prefs).then(()=>setPushStatus('기기 푸시 등록됨')).catch(()=>setPushStatus('기기 푸시 동기화 실패'))},[uid,prefs])
+  useEffect(()=>{if(typeof Notification==='undefined'||Notification.permission!=='granted'||!vapidPublicKey)return;savePushSubscription(uid,prefs).then(()=>setPushStatus('기기 푸시 등록됨')).catch(()=>setPushStatus('기기 푸시 동기화 실패'))},[uid,prefs])
   useEffect(()=>{
     if(!prefs.enabled||!prefs.shopIds.length)return
     for(const room of rooms){
