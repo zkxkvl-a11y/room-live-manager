@@ -116,7 +116,6 @@ export default function App() {
   const [editing, setEditing] = useState(false)
   const [moving, setMoving] = useState<string | null>(null)
   const [directMinutes,setDirectMinutes]=useState('')
-  const [day, setDay] = useState('')
   const [viewSession, setViewSession] = useState<string | null>(null)
   const [checkout, setCheckout] = useState<string | null>(null)
   const [payMethod, setPayMethod] = useState<Payment['method'] | null>(null)
