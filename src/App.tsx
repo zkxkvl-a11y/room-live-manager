@@ -402,11 +402,12 @@ export default function App() {
       if(!source||!target||sourceId===targetId||source.started===null||source.cleaning||groupShop(source)!==groupShop(target)||target.started!==null||target.cleaning||target.tags.length>0||(target.headcount??0)>0||Boolean(target.memo?.trim()))return previous
       if(previous.sessions.some(x=>x.ended===null&&sameRoom(x,targetId)))return previous
       const activeSessions=previous.sessions.filter(x=>x.ended===null&&sameRoom(x,sourceId))
-      if(activeSessions.length!==1)return previous
+      const activeSession=activeSessions[0]
+      if(activeSessions.length!==1||!activeSession)return previous
       return {...previous,
         rooms:previous.rooms.map(r=>roomKey(r)===sourceId?{...r,started:null,ends:null,tags:[],headcount:0,memo:''}:roomKey(r)===targetId?{...r,started:source.started,ends:source.ends,tags:[...source.tags],headcount:source.headcount??0,memo:source.memo??''}:r),
         visits:previous.visits.map(v=>v.exited===null&&sameRoom(v,sourceId)?{...v,room:target.id,roomUid:targetId}:v),
-        sessions:previous.sessions.map(x=>x.id===activeSessions[0].id?{...x,room:target.id,roomUid:targetId}:x),
+        sessions:previous.sessions.map(x=>x.id===activeSession.id?{...x,room:target.id,roomUid:targetId}:x),
         logs:[{id:crypto.randomUUID(),at,room:target.id,roomUid:targetId,action:source.id+' → '+target.id+' 방 이동'},...previous.logs]}
     })
     setRoomMove(null);setRoomMoveTarget('');setDetail(null);setChosen([])
@@ -423,11 +424,12 @@ export default function App() {
       const room=previous.rooms.find(r=>roomKey(r)===id)
       if(!room||room.started===null||room.ends===null||room.cleaning)return previous
       const open=previous.sessions.filter(x=>x.ended===null&&sameRoom(x,id))
-      if(open.length!==1)return previous
+      const openSession=open[0]
+      if(open.length!==1||!openSession)return previous
       const delta=newStart-room.started
       return {...previous,
         rooms:previous.rooms.map(r=>roomKey(r)===id?{...r,started:newStart,ends:r.ends===null?null:r.ends+delta}:r),
-        sessions:previous.sessions.map(x=>x.id===open[0].id?{...x,started:newStart}:x),
+        sessions:previous.sessions.map(x=>x.id===openSession.id?{...x,started:newStart}:x),
         logs:[{id:crypto.randomUUID(),at,room:room.id,roomUid:id,action:'시작 시간 수정 '+new Date(room.started).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Seoul'})+' → '+value},...previous.logs]}
     })
     setStartTimeEdit(null)
