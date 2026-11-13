@@ -707,10 +707,12 @@ export default function App() {
   if(role==='pending')return <div className="cloud-gate"><h1>ROOM LIVE</h1><p>가입 신청이 접수되었습니다. 관리자 승인 후 이용할 수 있습니다.</p><button onClick={()=>signOut(auth)}>로그아웃</button></div>
   if(remoteState!=='ready')return <div className="cloud-gate"><h1>ROOM LIVE</h1><p>{remoteState==='empty'?'서버 데이터가 아직 없습니다.':remoteState==='error'?'서버 연결에 실패했습니다.':'실시간 서버 데이터 연결 중...'}</p>{remoteState==='empty'&&isAdmin&&<><p>최초 한 번만 이 휴대폰의 기존 데이터를 서버에 등록합니다. 다른 휴대폰에서는 이 버튼을 누르지 마세요.</p><button onClick={()=>{void importLocal()}}>이 휴대폰 데이터로 서버 시작</button></>}{remoteError&&<p role="alert" className="cloud-error">{remoteError}</p>}<button onClick={()=>signOut(auth)}>로그아웃</button></div>
   return <div className="app">
-    <header className="compact-header"><h1>룸 라이브</h1><span className="app-version">v0.5.2</span></header>
+    <header className="compact-header"><h1>룸 라이브</h1>{page==='rooms'?<div className="header-shop-tabs" role="group" aria-label="가게 선택"><button type="button" className={shopTab==='all'?'active':''} onClick={()=>setShopTab('all')}>전체</button>{shops.map(sh=><button type="button" key={sh.id} title={sh.name} className={shopTab===sh.id?'active':''} onClick={()=>setShopTab(sh.id)}>{sh.name}</button>)}</div>:<span className="app-version">v0.5.2</span>}</header>
     {page === 'rooms' && <main className="room-board">
       <div className="section"><h2>방 현황 <small>{store.rooms.length}개</small></h2><button onClick={() => { if(!canOperate)return;setEditing(!editing); setMoving(null); setChosen([]) }}>{editing ? '편집 완료' : '배치 편집'}</button></div>
-      <div className="shop-tabs"><button className={shopTab==='all'?'active':''} onClick={()=>setShopTab('all')}>전체</button>{shops.map(sh=><button key={sh.id} className={shopTab===sh.id?'active':''} onClick={()=>setShopTab(sh.id)}>{sh.name}</button>)}</div>
+      <section className="waiting-top" aria-label="대기 인원"><div className="waiting-top-heading"><strong>대기 인원 <small>{waiting.length}명</small></strong><button type="button" onClick={()=>setPage('attendance')}>출근부 관리</button></div><div className="tag-list">{waiting.map(h=><button type="button" key={h.id} className={chosen.includes(h.id)?'picked':''} onClick={()=>setChosen(v=>v.includes(h.id)?v.filter(x=>x!==h.id):[...v,h.id])}>{h.name}{chosen.includes(h.id)&&<small>✓</small>}</button>)}</div>{!waiting.length&&<p className="waiting-empty">대기 인원 없음</p>}</section>
+
+      
       {shops.filter(sh=>shopTab==='all'||sh.id===shopTab).map(sh=><div className="shop-section" key={sh.id}><div className="shop-divider"><span>{sh.name}</span></div>{editing&&<button className="manage-add" onClick={()=>askInput(sh.name+' 새 묶음 이름','',value=>{const name=value.trim();if(!name)return;if(groups.some(g=>g.shopId===sh.id&&g.name.toLocaleLowerCase()===name.toLocaleLowerCase())){setRemoteError('같은 가게에 이미 있는 묶음 이름입니다.');return}setStore(v=>({...v,groups:[...(v.groups??[]),{id:crypto.randomUUID(),shopId:sh.id,name,layout:[]}]}))})}>+ {sh.name} 묶음 추가</button>}{groups.filter(g=>g.shopId===sh.id).map(g=>{
         const groupRooms=store.rooms.filter(r=>r.groupId===g.id)
         const used=new Set(g.layout.filter((id):id is string=>id!==null))
@@ -751,11 +753,6 @@ export default function App() {
           })}</div>
         </section>
       })}</div>)}
-      <div className="section"><h2>출근부 · 대기 <small>{waiting.length}명</small></h2><button onClick={()=>setPage('attendance')}>출근부 관리</button></div>
-      
-      <div className="tag-list">{waiting.map(h=><button key={h.id} className={chosen.includes(h.id)?'picked':''} onClick={()=>setChosen(v=>v.includes(h.id)?v.filter(x=>x!==h.id):[...v,h.id])}>{h.name}<small>{chosen.includes(h.id)?'✓ 선택됨':'대기'}</small></button>)}</div>
-      
-      {!waiting.length&&<p className="hint">출근 중인 대기 인원이 없습니다. 출근부에서 출근 처리해 주세요.</p>}
       
     </main>}
     {page==='logs'&&<main><div className="section"><h2>{historyRoom ? roomName(historyRoom)+' 진행 기록' : '방별 진행 기록'}</h2>{historyRoom&&<button onClick={()=>setHistoryRoom(null)}>← 방 목록</button>}</div>
