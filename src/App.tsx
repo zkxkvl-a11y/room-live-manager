@@ -399,14 +399,15 @@ export default function App() {
       const source=previous.rooms.find(r=>roomKey(r)===sourceId)
       const target=previous.rooms.find(r=>roomKey(r)===targetId)
       const groupShop=(room:Room)=>previous.groups?.find(g=>g.id===room.groupId)?.shopId
+      const matches=(x:{room:string;roomUid?:string},uid:string)=>x.roomUid?x.roomUid===uid:x.room===previous.rooms.find(r=>roomKey(r)===uid)?.id
       if(!source||!target||sourceId===targetId||source.started===null||source.cleaning||groupShop(source)!==groupShop(target)||target.started!==null||target.cleaning||target.tags.length>0||(target.headcount??0)>0||Boolean(target.memo?.trim()))return previous
-      if(previous.sessions.some(x=>x.ended===null&&sameRoom(x,targetId)))return previous
-      const activeSessions=previous.sessions.filter(x=>x.ended===null&&sameRoom(x,sourceId))
+      if(previous.sessions.some(x=>x.ended===null&&matches(x,targetId)))return previous
+      const activeSessions=previous.sessions.filter(x=>x.ended===null&&matches(x,sourceId))
       const activeSession=activeSessions[0]
       if(activeSessions.length!==1||!activeSession)return previous
       return {...previous,
         rooms:previous.rooms.map(r=>roomKey(r)===sourceId?{...r,started:null,ends:null,tags:[],headcount:0,memo:''}:roomKey(r)===targetId?{...r,started:source.started,ends:source.ends,tags:[...source.tags],headcount:source.headcount??0,memo:source.memo??''}:r),
-        visits:previous.visits.map(v=>v.exited===null&&sameRoom(v,sourceId)?{...v,room:target.id,roomUid:targetId}:v),
+        visits:previous.visits.map(v=>v.exited===null&&matches(v,sourceId)?{...v,room:target.id,roomUid:targetId}:v),
         sessions:previous.sessions.map(x=>x.id===activeSession.id?{...x,room:target.id,roomUid:targetId}:x),
         logs:[{id:crypto.randomUUID(),at,room:target.id,roomUid:targetId,action:source.id+' → '+target.id+' 방 이동'},...previous.logs]}
     })
@@ -423,7 +424,7 @@ export default function App() {
     setStore(previous=>{
       const room=previous.rooms.find(r=>roomKey(r)===id)
       if(!room||room.started===null||room.ends===null||room.cleaning)return previous
-      const open=previous.sessions.filter(x=>x.ended===null&&sameRoom(x,id))
+      const open=previous.sessions.filter(x=>x.ended===null&&(x.roomUid?x.roomUid===id:x.room===room.id))
       const openSession=open[0]
       if(open.length!==1||!openSession)return previous
       const delta=newStart-room.started
