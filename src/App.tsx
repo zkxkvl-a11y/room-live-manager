@@ -470,7 +470,7 @@ export default function App() {
         logs:[{id:logId,at,room:room.id,roomUid:id,action:`남은 시간 직접 설정 ${minutes}분 · 변경 전 ${room.ends?format(room.ends-at):'대기'}`},...s.logs]
       }
     })
-    setAdjust(null);setDirectMinutes('')
+    setDirectMinutes('')
   }
   function start(id: string) {
     const at=Date.now(),sessionId=crypto.randomUUID(),logId=crypto.randomUUID()
@@ -695,7 +695,7 @@ export default function App() {
   function roomTap(id: string) {
     if (held.current) { held.current = false; return }
     if (editing) return
-    if(store.rooms.find(r=>roomKey(r)===id)?.cleaning){clearCleaning(id);return}
+    if(store.rooms.find(r=>roomKey(r)===id)?.cleaning){if(canOperate)clearCleaning(id);return}
     if (chosen.length) { placeMany(chosen, id); return }
     const t = Date.now()
     if (tap.current?.room === id && t - tap.current.time < 350) { tap.current = null; changeTime(id, 60) }
@@ -740,10 +740,10 @@ export default function App() {
               onPointerDown={e=>{touchStart.current={x:e.clientX,y:e.clientY};held.current=false;if(!editing&&!chosen.length&&!r.cleaning)hold.current=setTimeout(()=>{held.current=true;setDetail(null);setAdjust(roomKey(r))},550)}}
               onPointerMove={e=>{if(touchStart.current&&Math.hypot(e.clientX-touchStart.current.x,e.clientY-touchStart.current.y)>12&&hold.current)clearTimeout(hold.current)}}
               onPointerUp={()=>{if(hold.current)clearTimeout(hold.current)}} onPointerLeave={()=>{if(hold.current)clearTimeout(hold.current)}} onPointerCancel={()=>{if(hold.current)clearTimeout(hold.current)}}
-              onContextMenu={e=>{e.preventDefault();if(!editing&&!chosen.length){held.current=true;setAdjust(roomKey(r))}}}>
-              <div className="room-head"><strong>{r.id}</strong><div className="room-head-controls"><button type="button" className="room-headcount" aria-label={r.id+' 인원수 선택'} aria-expanded={headcountMenu?.id===roomKey(r)} disabled={!canOperate||editing} onPointerDown={e=>e.stopPropagation()} onPointerUp={e=>e.stopPropagation()} onClick={e=>openHeadcountMenu(e,roomKey(r))}>{r.headcount?r.headcount+'명':'인원'} <span aria-hidden="true">⌄</span></button><span>{roomVisualState==='choice'?'초이스 대기 중':roomVisualState==='critical'?(expired?'시간 종료':'종료 직전'):roomVisualState==='warning'?'종료 임박':roomVisualState==='active'?'진행 중':'대기'}</span></div></div>
-              {r.started!==null&&<div className="room-entry-time">{new Date(r.started).toLocaleTimeString('ko-KR',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit',timeZone:'Asia/Seoul'})}</div>}
-              <div className="time">{r.ends?format(r.ends-now):'--:--:--'}</div>
+              onContextMenu={e=>{e.preventDefault();if(!editing&&!chosen.length&&!r.cleaning){held.current=true;setAdjust(roomKey(r))}}}>
+              <div className="room-head"><strong>{r.id}</strong><div className="room-head-controls"><button type="button" className="room-headcount" aria-label={r.id+' 인원수 선택'} aria-expanded={headcountMenu?.id===roomKey(r)} disabled={!canOperate||editing||r.cleaning} onPointerDown={e=>e.stopPropagation()} onPointerUp={e=>e.stopPropagation()} onClick={e=>openHeadcountMenu(e,roomKey(r))}>{r.headcount?r.headcount+'명':'인원'} <span aria-hidden="true">⌄</span></button><span>{roomVisualState==='cleaning'?'청소대기중':roomVisualState==='choice'?'초이스 대기 중':roomVisualState==='critical'?(expired?'시간 종료':'종료 직전'):roomVisualState==='warning'?'종료 임박':roomVisualState==='active'?'진행 중':'대기'}</span></div></div>
+              {r.cleaning&&<div className="room-cleaning-message">청소대기중 · 터치하면 빈방</div>}{r.started!==null&&<div className="room-entry-time">{new Date(r.started).toLocaleTimeString('ko-KR',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit',timeZone:'Asia/Seoul'})}</div>}
+              <div className="time">{r.cleaning?'청소대기중':r.ends?format(r.ends-now):'--:--:--'}</div>
               <div className="tags room-inline-staff">{r.tags.length?r.tags.map(tag=><button type="button" key={tag} className={'room-staff-choice '+(chosen.includes(tag)?'selected':'')} aria-pressed={chosen.includes(tag)} onClick={e=>{e.stopPropagation();setChosen(prev=>prev.includes(tag)?prev.filter(x=>x!==tag):[...prev,tag])}}>{helperName(tag)}</button>):'배치 인원 없음'}</div>
               {editing&&<div className="room-tools"><button onClick={e=>{e.stopPropagation();askInput('방 이름 변경',r.id,value=>{const name=value.trim().toUpperCase();if(!name||name===r.id)return;if(duplicated(name,g.shopId,roomKey(r))){setRemoteError('같은 가게에 이미 등록된 방 이름입니다.');return}setStore(v=>({...v,rooms:v.rooms.map(x=>roomKey(x)===roomKey(r)?{...x,id:name}:x),logs:v.logs.map(x=>sameRoom(x,roomKey(r))?{...x,room:name}:x),visits:v.visits.map(x=>sameRoom(x,roomKey(r))?{...x,room:name}:x),sessions:v.sessions.map(x=>sameRoom(x,roomKey(r))?{...x,room:name}:x),payments:v.payments.map(x=>sameRoom(x,roomKey(r))?{...x,room:name}:x)}))})}}>이름</button><button onClick={e=>{e.stopPropagation();if(r.started||r.tags.length){setRemoteError('진행 중인 방은 이동할 수 없습니다.');return}askInput('이동할 묶음 이름',g.name,value=>{const dest=value.trim();const target=groups.find(x=>x.name===dest&&x.id!==g.id);if(!target){setRemoteError('이동할 묶음을 찾을 수 없습니다.');return}if(duplicated(r.id,target.shopId)){setRemoteError('이동할 가게에 같은 이름의 방이 있습니다.');return}setStore(v=>({...v,rooms:v.rooms.map(x=>roomKey(x)===roomKey(r)?{...x,groupId:target.id}:x),groups:(v.groups??[]).map(x=>x.id===g.id?{...x,layout:x.layout.map(y=>y===roomKey(r)?null:y)}:x)}))})}}>이동</button><button onClick={e=>{e.stopPropagation();if(r.started||r.tags.length){setRemoteError('이용 중인 방은 삭제할 수 없습니다.');return}askConfirm('방 삭제',r.id+' 방을 삭제할까요?',()=>setStore(v=>({...v,rooms:v.rooms.filter(x=>roomKey(x)!==roomKey(r)),groups:(v.groups??[]).map(x=>({...x,layout:x.layout.map(y=>y===roomKey(r)?null:y)}))})))}}>삭제</button></div>}
               
