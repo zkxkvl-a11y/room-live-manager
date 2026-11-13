@@ -181,10 +181,11 @@ export default function App() {
     if(!isAdmin||v2Active||remoteState!=='ready')return
     const rooms:ObserverRoom[]=store.rooms.map(r=>{
       const group=(store.groups??[]).find(g=>g.id===r.groupId)
-      return {uid:r.uid??r.id,name:r.id,shop:(store.shops??[]).find(sh=>sh.id===group?.shopId)?.name??'',group:group?.name??'',started:r.started??null,ends:r.ends??null,headcount:r.tags.length}
+      return {uid:r.uid??r.id,name:r.id,shop:(store.shops??[]).find(sh=>sh.id===group?.shopId)?.name??'',group:group?.name??'',started:r.started??null,ends:r.ends??null,headcount:r.headcount??r.tags.length,staffNames:r.tags.map(id=>(store.attendance??[]).find(h=>h.id===id)?.name??id),memo:r.memo??'',cleaning:Boolean(r.cleaning)}
     })
+    const waitingNames=(store.attendance??[]).filter(h=>h.working&&!h.archivedAt&&!store.rooms.some(r=>r.tags.includes(h.id))).map(h=>h.name)
     // A separate, deliberately minimal read-only projection: no names, payments or logs.
-    void set(ref(database,'roomLiveObserver'),{rooms,updatedAt:Date.now()}).catch(error=>setRemoteError('현황 공유 갱신 실패: '+String(error)))
+    void set(ref(database,'roomLiveObserver'),{rooms,waitingNames,updatedAt:Date.now()}).catch(error=>setRemoteError('현황 공유 갱신 실패: '+String(error)))
   },[isAdmin,store,remoteState,v2Active])
   useEffect(()=>{
     if(!isAdmin||v2Active||remoteState!=='ready'||!readyRef.current)return
