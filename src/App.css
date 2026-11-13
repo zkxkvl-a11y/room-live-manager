@@ -484,3 +484,15 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .safe-update-notice{position:fixed;z-index:10005;bottom:calc(80px + env(safe-area-inset-bottom,0px));left:12px;right:12px;max-width:550px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 12px;background:#243b56;color:#edf7ff;border:1px solid #52749b;border-radius:11px;box-shadow:0 8px 24px #0009;font-size:12px;line-height:1.4}
 .safe-update-notice button{flex-shrink:0;background:#247f82;color:white;border-radius:8px;padding:9px 11px;font-weight:800}
 @media(max-width:380px){.room-board .observer-room-tile.room-state-active,.room-board .observer-room-tile.room-state-warning,.room-board .observer-room-tile.room-state-critical,.room-board .observer-room-tile.room-state-choice{padding:6px}}
+
+/* Compact 60-minute remaining-time reset beside the large room timer. */
+.room-time-row{position:relative;display:flex;align-items:center;justify-content:center;min-height:95px}
+.room-time-row .large-time{flex:1;text-align:center;min-width:0}
+.room-hour-reset{position:absolute;left:0;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;width:76px;min-height:68px;padding:7px 4px;border:1px solid #577493;border-radius:12px;background:#314b6d;color:#eaf5ff;font-weight:800;z-index:1}
+.room-hour-reset span{font-size:30px;line-height:1}
+.room-hour-reset small{font-size:11px;white-space:nowrap}
+.room-hour-reset:disabled{opacity:.4}
+.room-reset-overlay{z-index:11000}
+.room-reset-confirm{max-width:420px}
+.room-reset-confirm p{line-height:1.5}
+@media(max-width:390px){.room-hour-reset{width:65px;min-height:62px}.room-hour-reset small{font-size:10px}.room-time-row .large-time{padding-left:48px;font-size:clamp(30px,9vw,48px)}}
