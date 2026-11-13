@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Room } from './store-model'
-import { ref, set } from 'firebase/database'
+import { ref, set, remove } from 'firebase/database'
 import { database } from './firebase'
 
 type Shop={id:string;name:string}
@@ -17,7 +17,8 @@ async function savePushSubscription(uid:string,prefs:Preferences){
   const json=subscription.toJSON()
   const endpoint=subscription.endpoint
   const deviceId=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(endpoint)).then(bytes=>Array.from(new Uint8Array(bytes)).map(x=>x.toString(16).padStart(2,'0')).join(''))
-  await set(ref(database,'roomLivePushSubscriptions/'+uid+'/'+deviceId),{endpoint,keys:json.keys??{},shopIds:prefs.shopIds,ten:prefs.ten,five:prefs.five,enabled:prefs.enabled,updatedAt:Date.now()})
+  if(!prefs.enabled||!prefs.shopIds.length||(!prefs.ten&&!prefs.five))throw new Error('알림 사용과 수신 가게·시점을 먼저 선택해 주세요.')
+  await set(ref(database,'roomLivePushSubscriptions/'+uid+'/'+deviceId),{endpoint,keys:json.keys??{},shopIds:prefs.shopIds,ten:prefs.ten,five:prefs.five,enabled:true,updatedAt:Date.now()})
   return deviceId
 }
 
@@ -34,7 +35,30 @@ export default function RoomAlerts({uid,shops,groups,rooms,now,show,onClose}:{ui
   const [permission,setPermission]=useState(typeof Notification==='undefined'?'unsupported':Notification.permission)
   useEffect(()=>{setPrefs(read(uid));seen.current.clear()},[uid])
   useEffect(()=>{try{localStorage.setItem(storageKey(uid),JSON.stringify(prefs))}catch{}},[uid,prefs])
-  useEffect(()=>{if(typeof Notification==='undefined'||Notification.permission!=='granted'||!vapidPublicKey)return;savePushSubscription(uid,prefs).then(()=>setPushStatus('기기 푸시 등록됨')).catch(()=>setPushStatus('기기 푸시 동기화 실패'))},[uid,prefs])
+  useEffect(()=>{
+    if(typeof Notification==='undefined'||Notification.permission!=='granted'||!vapidPublicKey)return
+    let cancelled=false
+    const sync=async()=>{
+      try{
+        const registration=await navigator.serviceWorker.ready
+        const subscription=await registration.pushManager.getSubscription()
+        if(!prefs.enabled||!prefs.shopIds.length||(!prefs.ten&&!prefs.five)){
+          if(subscription){
+            const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(subscription.endpoint))
+            const deviceId=Array.from(new Uint8Array(bytes)).map(x=>x.toString(16).padStart(2,'0')).join('')
+            await remove(ref(database,'roomLivePushSubscriptions/'+uid+'/'+deviceId))
+            await subscription.unsubscribe()
+          }
+          if(!cancelled)setPushStatus('백그라운드 알림 꺼짐')
+          return
+        }
+        await savePushSubscription(uid,prefs)
+        if(!cancelled)setPushStatus('기기 푸시 등록됨 · 서버 발송 설정 필요')
+      }catch(error){if(!cancelled)setPushStatus('기기 푸시 동기화 실패: '+(error instanceof Error?error.message:String(error)))}
+    }
+    void sync()
+    return ()=>{cancelled=true}
+  },[uid,prefs])
   useEffect(()=>{
     if(!prefs.enabled||!prefs.shopIds.length)return
     for(const room of rooms){
@@ -66,7 +90,7 @@ export default function RoomAlerts({uid,shops,groups,rooms,now,show,onClose}:{ui
       setPermission(result)
       if(result==='granted'){
         setMessage('알림 권한이 허용되었습니다.')
-        try{await savePushSubscription(uid,prefs);setPushStatus('기기 푸시 등록됨')}catch(error){setPushStatus(error instanceof Error?error.message:'기기 푸시 등록 실패')}
+        try{await savePushSubscription(uid,prefs);setPushStatus('기기 푸시 등록됨 · 서버 발송 설정 필요')}catch(error){setPushStatus(error instanceof Error?error.message:'기기 푸시 등록 실패')}
       }
       else setMessage('알림 권한이 허용되지 않았습니다. 앱 내부 알림은 계속 사용할 수 있습니다.')
     }catch{setMessage('알림 권한 요청에 실패했습니다.')}
