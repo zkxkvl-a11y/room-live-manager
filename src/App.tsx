@@ -118,7 +118,6 @@ export default function App() {
   const [directMinutes,setDirectMinutes]=useState('')
   const [day, setDay] = useState('')
   const [viewSession, setViewSession] = useState<string | null>(null)
-  const [historyRoom, setHistoryRoom] = useState<string | null>(null)
   const [checkout, setCheckout] = useState<string | null>(null)
   const [payMethod, setPayMethod] = useState<Payment['method'] | null>(null)
   const [payAmount, setPayAmount] = useState('')
