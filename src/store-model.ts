@@ -28,8 +28,8 @@ export function read():Store {
     const old=JSON.parse(raw) as Store
     if(!old||typeof old!=='object'||Array.isArray(old))return seed
     const normalized=normalizeRemote(old)
-    const shops=normalized.shops.length?normalized.shops:seed.shops!
-    const groups=normalized.groups.length?normalized.groups:seed.groups!
+    const shops=(normalized.shops??[]).length?normalized.shops!:seed.shops!
+    const groups=(normalized.groups??[]).length?normalized.groups!:seed.groups!
     const rooms=normalized.rooms.map(r=>({...r,uid:r.uid??crypto.randomUUID(),groupId:r.groupId??groups[0].id}))
     const byName=(name:string)=>rooms.find(r=>r.id===name)
     const layout=asArray<string|null>(old.layout).length?asArray<string|null>(old.layout):rooms.map(r=>r.id)
@@ -37,7 +37,7 @@ export function read():Store {
     const enrich=<T extends {room:string;roomUid?:string},>(items:T[])=>items.map(x=>({...x,roomUid:x.roomUid??byName(x.room)?.uid}))
     const payments=normalized.payments.map(p=>({...p,roomUid:p.roomUid??byName(p.room)?.uid,groupId:p.groupId??byName(p.room)?.groupId??groups[0].id,shopId:p.shopId??groups.find(g=>g.id===(byName(p.room)?.groupId??groups[0].id))?.shopId??shops[0].id}))
     const legacyNames=[...new Set([...normalized.tags,...rooms.flatMap(r=>r.tags),...normalized.visits.map(v=>v.tag)])]
-    const attendance=normalized.attendance.length?normalized.attendance:legacyNames.map(name=>({id:crypto.randomUUID(),name,working:rooms.some(r=>r.tags.includes(name))}))
+    const attendance=(normalized.attendance??[]).length?normalized.attendance!:legacyNames.map(name=>({id:crypto.randomUUID(),name,working:rooms.some(r=>r.tags.includes(name))}))
     const helperId=(tag:string)=>attendance.find(h=>h.id===tag||h.name===tag)?.id??tag
     return {...normalized,rooms:rooms.map(r=>({...r,tags:r.tags.map(helperId)})),shops,groups:migrated,payments,logs:enrich(normalized.logs),visits:enrich(normalized.visits).map(v=>({...v,tag:helperId(v.tag)})),sessions:enrich(normalized.sessions),attendance}
   }catch{return seed}
