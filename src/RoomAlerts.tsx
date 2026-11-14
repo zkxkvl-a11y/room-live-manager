@@ -6,12 +6,12 @@ import { database } from './firebase'
 type Shop={id:string;name:string}
 type Group={id:string;shopId:string}
 type Preferences={enabled:boolean;shopIds:string[];ten:boolean;five:boolean}
-const vapidPublicKey=import.meta.env.VITE_WEB_PUSH_PUBLIC_KEY as string|undefined
+const vapidPublicKey=(import.meta.env.VITE_WEB_PUSH_PUBLIC_KEY as string|undefined) || 'BPusAGChHTM4TOHokYRnL1dvaIysY8l3b18hTRHngDAI8QMY8xUwvF1lSQ8YZo_nMebIIdcqbaYv4xmflPzDVRU'
 function decodeVapid(key:string){const padding='='.repeat((4-key.length%4)%4);const raw=atob((key+padding).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(raw,c=>c.charCodeAt(0))}
 async function savePushSubscription(uid:string,prefs:Preferences){
   if(!('serviceWorker' in navigator)||!('PushManager' in window))throw new Error('이 기기는 백그라운드 푸시를 지원하지 않습니다.')
   if(!vapidPublicKey)throw new Error('서버 푸시 인증키가 아직 설정되지 않았습니다.')
-  const registration=await navigator.serviceWorker.ready
+  const registration=await navigator.serviceWorker.register('/room-live-sw.js')
   let subscription=await registration.pushManager.getSubscription()
   if(!subscription){subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:decodeVapid(vapidPublicKey)})}
   const json=subscription.toJSON()
