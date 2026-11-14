@@ -1,0 +1,11 @@
+name = "room-live-notifications"
+main = "src/index.js"
+compatibility_date = "2026-11-14"
+compatibility_flags = ["nodejs_compat"]
+# Configure a D1 binding after creating the database:
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "room-live-notifications"
+# database_id = "REPLACE_WITH_REAL_DATABASE_ID"
+# [triggers]
+# crons = ["* * * * *"]
