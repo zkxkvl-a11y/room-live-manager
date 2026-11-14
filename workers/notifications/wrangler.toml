@@ -7,5 +7,4 @@ compatibility_flags = ["nodejs_compat"]
 binding = "DB"
 database_name = "room-live-manager"
 database_id = "6b076b0f-8d8a-494a-8564-562ccbcd1563"
-# [triggers]
-# crons = ["* * * * *"]
+# Scheduled notifications remain disabled until end-to-end push verification.
