@@ -75,6 +75,7 @@ export default function App() {
   const [detail, setDetail] = useState<string | null>(null)
   const [adjust, setAdjust] = useState<string | null>(null)
   const [chosen, setChosen] = useState<string[]>([])
+  const [selectionBusy,setSelectionBusy]=useState(false)
   const [editing, setEditing] = useState(false)
   const [moving, setMoving] = useState<string | null>(null)
   const [day, setDay] = useState('')
@@ -405,7 +406,7 @@ export default function App() {
     setStore(s=>{
       const target=s.rooms.find(r=>roomKey(r)===destination)
       if(destination&&!target)return s
-      const moves=valid.filter(id=>!s.rooms.some(r=>roomKey(r)===destination&&r.tags.includes(id)))
+      const moves=valid.filter(id=>s.attendance?.some(h=>h.id===id&&h.working)&&!s.rooms.some(r=>roomKey(r)===destination&&r.tags.includes(id)))
       if(!moves.length)return s
       const logs:Log[]=[]
       for(const r of s.rooms)for(const tag of r.tags.filter(t=>moves.includes(t)))logs.push({id:crypto.randomUUID(),at,room:r.id,roomUid:roomKey(r),action:helperName(tag)+' 퇴실'})
@@ -415,6 +416,15 @@ export default function App() {
       return {...s,rooms:s.rooms.map(r=>({...r,tags:[...r.tags.filter(t=>!moves.includes(t)),...(roomKey(r)===destination?moves:[])],...(autoStart&&roomKey(r)===destination?{started:at,ends:at+3600000}:{})})),visits:[...(target?moves.map(tag=>({id:crypto.randomUUID(),tag,room:target.id,roomUid:roomKey(target),entered:at,exited:null})):[]),...s.visits.map(v=>moves.includes(v.tag)&&v.exited===null?{...v,exited:at}:v)],logs:[...logs,...s.logs],sessions:autoStart&&target?[{id:crypto.randomUUID(),room:target.id,roomUid:roomKey(target),started:at,ended:null},...s.sessions]:s.sessions}
     })
     setChosen([])
+  }
+  function outSelected(){
+    if(!chosen.length||selectionBusy)return
+    const assigned=chosen.filter(id=>store.rooms.some(r=>r.tags.includes(id)))
+    if(!assigned.length){setChosen([]);return}
+    if(!confirm(assigned.map(helperName).join(', ')+' · '+assigned.length+'명을 방에서 OUT 처리할까요?'))return
+    setSelectionBusy(true)
+    placeMany(assigned,null)
+    setSelectionBusy(false)
   }
   function place(tag:string,destination:string|null){placeMany([tag],destination)}
   function toggleAttendance(id:string){
@@ -437,7 +447,12 @@ export default function App() {
   function roomTap(id: string) {
     if (held.current) { held.current = false; return }
     if (editing) return
-    if (chosen.length) { placeMany(chosen, id); return }
+    if (chosen.length) {
+      const movable=chosen.filter(tag=>!store.rooms.some(r=>roomKey(r)===id&&r.tags.includes(tag)))
+      if(!movable.length)return
+      if(!confirm(movable.map(helperName).join(', ')+' · '+movable.length+'명을 '+roomName(id)+'에 배치할까요?'))return
+      placeMany(movable,id);return
+    }
     const t = Date.now()
     if (tap.current?.room === id && t - tap.current.time < 350) { tap.current = null; changeTime(id, 60) }
     else { tap.current = { room: id, time: t }; setTimeout(() => { if (tap.current?.room === id && tap.current.time === t) { tap.current = null; setDetail(id) } }, 360) }
@@ -449,7 +464,7 @@ export default function App() {
   if(role==='pending')return <div className="cloud-gate"><h1>ROOM LIVE</h1><p>승인 대기 중인 계정입니다. 관리자에게 Firebase 사용자 UID를 전달하고 승인을 요청해 주세요.</p><p className="hint">내 UID: {account.uid}</p><button onClick={()=>navigator.clipboard?.writeText(account.uid)}>UID 복사</button><button onClick={()=>signOut(auth)}>로그아웃</button></div>
   if(remoteState!=='ready')return <div className="cloud-gate"><h1>ROOM LIVE</h1><p>{remoteState==='empty'?'서버 데이터가 아직 없습니다.':remoteState==='error'?'서버 연결에 실패했습니다.':'실시간 서버 데이터 연결 중...'}</p>{remoteState==='empty'&&<><p>최초 한 번만 이 휴대폰의 기존 데이터를 서버에 등록합니다. 다른 휴대폰에서는 이 버튼을 누르지 마세요.</p><button onClick={importLocal}>이 휴대폰 데이터로 서버 시작</button></>}{remoteError&&<p role="alert" className="cloud-error">{remoteError}</p>}<button onClick={()=>signOut(auth)}>로그아웃</button></div>
   return <div className="app">
-    <header><div><span className="kicker">ROOM LIVE · v0.5.3</span><h1>룸 라이브</h1><p>방 · 태그 · 시간 통합 관리</p></div><span className="status">● Firebase 실시간</span></header>
+    <header><div><span className="kicker">ROOM LIVE · v0.5.4</span><h1>룸 라이브</h1><p>방 · 태그 · 시간 통합 관리</p></div><span className="status">● Firebase 실시간</span></header>
     {page === 'rooms' && <main>
       <div className="section"><h2>방 현황 <small>{store.rooms.length}개</small></h2><button onClick={() => { if(!canOperate)return;setEditing(!editing); setMoving(null); setChosen([]) }}>{editing ? '편집 완료' : '배치 편집'}</button></div>
       <div className="shop-tabs"><button className={shopTab==='all'?'active':''} onClick={()=>setShopTab('all')}>전체</button>{shops.map(sh=><button key={sh.id} className={shopTab===sh.id?'active':''} onClick={()=>setShopTab(sh.id)}>{sh.name}</button>)}</div>
@@ -483,7 +498,7 @@ export default function App() {
               onContextMenu={e=>{e.preventDefault();if(!editing&&!chosen.length){held.current=true;setAdjust(roomKey(r))}}}>
               <div className="room-head"><strong>{r.id}</strong><span className="room-state">{expired?'시간 종료':r.ends?'이용 중':'대기'}</span></div>
               <div className="time" aria-label={r.ends?(expired?'종료된 시간 '+format(r.ends-now):'남은 시간 '+format(r.ends-now)):'이용 대기'}>{r.ends?format(r.ends-now):'--:--:--'}</div>
-              <div className="tags" title={r.tags.map(helperName).join(' · ')}>{r.tags.length?r.tags.map(helperName).join(' · '):'배치 인원 없음'}</div>
+              <div className="tags" title={r.tags.map(helperName).join(' · ')}>{r.tags.length?r.tags.map(tag=><button type="button" key={tag} className={'room-staff '+(chosen.includes(tag)?'picked':'')} aria-pressed={chosen.includes(tag)} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();if(editing)return;setChosen(v=>v.includes(tag)?v.filter(x=>x!==tag):[...v,tag])}}>{helperName(tag)}</button>):'배치 인원 없음'}</div>
               {editing&&<div className="room-tools"><button onClick={e=>{e.stopPropagation();let name=prompt('방 이름',r.id)?.trim().toUpperCase();while(name&&name!==r.id){if(duplicated(name,g.shopId,roomKey(r))){alert('같은 가게에 이미 등록된 방 이름입니다. 다시 입력해 주세요.');name=prompt('다른 방 이름 입력',name)?.trim().toUpperCase();continue}setStore(v=>({...v,rooms:v.rooms.map(x=>roomKey(x)===roomKey(r)?{...x,id:name!}:x),logs:v.logs.map(x=>sameRoom(x,roomKey(r))?{...x,room:name!}:x),visits:v.visits.map(x=>sameRoom(x,roomKey(r))?{...x,room:name!}:x),sessions:v.sessions.map(x=>sameRoom(x,roomKey(r))?{...x,room:name!}:x),payments:v.payments.map(x=>sameRoom(x,roomKey(r))?{...x,room:name!}:x)}));break}}}>이름</button><button onClick={e=>{e.stopPropagation();if(r.started||r.tags.length){alert('진행 중인 방은 이동할 수 없습니다.');return}const dest=prompt('이동할 묶음 이름',g.name);const target=groups.find(x=>x.name===dest&&x.id!==g.id);if(target&&duplicated(r.id,target.shopId)){alert('이동할 가게에 같은 이름의 방이 있습니다. 이름을 변경한 후 이동해 주세요.');return}if(target)setStore(v=>({...v,rooms:v.rooms.map(x=>roomKey(x)===roomKey(r)?{...x,groupId:target.id}:x),groups:(v.groups??[]).map(x=>x.id===g.id?{...x,layout:x.layout.map(y=>y===roomKey(r)?null:y)}:x)}))}}>이동</button><button onClick={e=>{e.stopPropagation();if(r.started||r.tags.length){alert('이용 중인 방은 삭제할 수 없습니다.');return}if(confirm(r.id+' 삭제할까요?'))setStore(v=>({...v,rooms:v.rooms.filter(x=>roomKey(x)!==roomKey(r)),groups:(v.groups??[]).map(x=>({...x,layout:x.layout.map(y=>y===roomKey(r)?null:y)}))}))}}>삭제</button></div>}
               {!editing&&chosen.length>0&&<button className="place" onClick={e=>{e.stopPropagation();placeMany(chosen,roomKey(r))}}>+ {chosen.length}명 배치</button>}
               {!editing&&r.started&&<button className={'room-pay '+(expired?'attention':'')} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();openCheckout(roomKey(r))}}>{expired?'⚠ 결제 필요':'결제'}</button>}
@@ -493,8 +508,8 @@ export default function App() {
       })}</div>)}
       <div className="section"><h2>출근부 · 대기 <small>{waiting.length}명</small></h2><button onClick={()=>setPage('attendance')}>출근부 관리</button></div>
       <p className="hint">대기 인원을 여러 명 선택한 뒤 방을 터치하면 동시에 입실합니다. 빈방은 60분 자동 시작됩니다.</p>
-      <div className="tag-list">{waiting.map(h=><button key={h.id} className={chosen.includes(h.id)?'picked':''} onClick={()=>setChosen(v=>v.includes(h.id)?v.filter(x=>x!==h.id):[...v,h.id])}>{h.name}<small>{chosen.includes(h.id)?'✓ 선택됨':'대기'}</small></button>)}</div>
-      {chosen.length>0&&<div className="selection-bar"><b>{chosen.length}명 선택됨</b><button onClick={()=>setChosen([])}>선택 해제</button></div>}
+      <div className="tag-list">{waiting.map(h=><button key={h.id} aria-pressed={chosen.includes(h.id)} className={chosen.includes(h.id)?'picked':''} onClick={()=>setChosen(v=>v.includes(h.id)?v.filter(x=>x!==h.id):[...v,h.id])}>{h.name}<small>{chosen.includes(h.id)?'✓ 선택됨':'대기'}</small></button>)}</div>
+      {chosen.length>0&&<div className="selection-bar selection-actions"><b>{chosen.length}명 선택됨 · 이동할 방을 터치</b><button onClick={()=>setChosen([])}>선택 취소</button><button className="out-action" disabled={selectionBusy||!chosen.some(id=>store.rooms.some(r=>r.tags.includes(id)))} onClick={outSelected}>OUT</button></div>}
       {!waiting.length&&<p className="hint">출근 중인 대기 인원이 없습니다. 출근부에서 출근 처리해 주세요.</p>}
       <p className="hint">방 한 번 터치: 상세 · 두 번 터치: +1시간 · 길게 누르기: 시간 조절</p>
     </main>}
