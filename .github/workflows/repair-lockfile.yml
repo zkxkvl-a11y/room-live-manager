@@ -22,8 +22,6 @@ jobs:
         run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
       - name: Verify clean dependency installation
         run: npm ci --no-audit --no-fund
-      - name: Verify production build
-        run: npm run build
       - name: Commit repaired lockfile
         run: |
           if git diff --quiet -- package-lock.json; then
@@ -35,3 +33,5 @@ jobs:
           git add package-lock.json
           git commit -m "fix: synchronize npm lockfile for Cloudflare deployment"
           git push
+      - name: Verify production build
+        run: npm run build
