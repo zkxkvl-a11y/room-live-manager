@@ -5,7 +5,7 @@ import { onAuthStateChanged, signInWithEmailAndPassword, signOut, type User } fr
 import { onValue, runTransaction, ref, set, remove } from 'firebase/database'
 import { auth, database, roomLiveRef, ADMIN_UID } from './firebase'
 
-import { seed, read, normalizeRemote, format, operatingDay, ledgerDay, date } from './store-model'
+import { seed, read, normalizeRemote, asArray, format, operatingDay, ledgerDay, date } from './store-model'
 import { workerViewOf } from './worker-view'
 import { applyCheckout } from './services/checkout'
 import { OPERATIONS_PATH, FINANCE_PATH, CHECKOUT_PATH, toOperations, mergeSplit } from './services/split-store'
@@ -124,7 +124,7 @@ export default function App() {
     setRemoteState('loading')
     const unsubscribe=onValue(ref(database,'roomLiveObserver'),snapshot=>{
       const value=snapshot.val() as ObserverSnapshot|null
-      setObserverData(value)
+      setObserverData(value?{...value,rooms:asArray<ObserverRoom>(value.rooms)}:null)
       setRemoteState(value?'ready':'empty')
     },error=>{setRemoteState('error');setRemoteError('옵저버 현황 조회 실패: '+error.message)})
     return unsubscribe
@@ -155,7 +155,7 @@ export default function App() {
     void runTransaction(financeRef,current=>{
       if(current===null)return
       // Never overwrite a newer snapshot with an older event arriving out of order.
-      const currentPayments=Array.isArray(current.payments)?current.payments:Object.values(current.payments??{})
+      const currentPayments=asArray<Payment>(current.payments)
       const existingIds=new Set((currentPayments as Payment[]).map(p=>p.id))
       const incomingIds=new Set(finance.payments.map(p=>p.id))
       if([...existingIds].some(id=>!incomingIds.has(id)))return
@@ -196,7 +196,7 @@ export default function App() {
       },error=>{readyRef.current=false;setRemoteState('error');setRemoteError('운영 데이터 조회 실패: '+error.message)})
       const unsubFinance=isAdmin?onValue(ref(database,FINANCE_PATH),snapshot=>{
         const value=snapshot.val()
-        v2PaymentsRef.current=(Array.isArray(value?.payments)?value.payments:Object.values(value?.payments??{})) as Payment[]
+        v2PaymentsRef.current=asArray<Payment>(value?.payments)
         financeLoaded=true
         refresh()
       },error=>{readyRef.current=false;setRemoteState('error');setRemoteError('장부 조회 실패: '+error.message)}):()=>{}
@@ -456,7 +456,7 @@ export default function App() {
       <div className="shop-tabs"><button className={shopTab==='all'?'active':''} onClick={()=>setShopTab('all')}>전체</button>{shops.map(sh=><button key={sh.id} className={shopTab===sh.id?'active':''} onClick={()=>setShopTab(sh.id)}>{sh.name}</button>)}</div>
       {shops.filter(sh=>shopTab==='all'||sh.id===shopTab).map(sh=><div className="shop-section" key={sh.id}><div className="shop-divider"><span>{sh.name}</span></div>{editing&&<button className="manage-add" onClick={()=>{const name=prompt(sh.name+' 새 묶음 이름')?.trim();if(!name)return;if(groups.some(g=>g.shopId===sh.id&&g.name.toLocaleLowerCase()===name.toLocaleLowerCase())){alert('같은 가게에 이미 있는 묶음 이름입니다.');return}setStore(v=>({...v,groups:[...(v.groups??[]),{id:crypto.randomUUID(),shopId:sh.id,name,layout:[]}]}))}}>+ {sh.name} 묶음 추가</button>}{groups.filter(g=>g.shopId===sh.id).map(g=>{
         const groupRooms=store.rooms.filter(r=>r.groupId===g.id)
-        const safeLayout=Array.isArray(g.layout)?g.layout:[]
+        const safeLayout=asArray<string|null>(g.layout)
         const used=new Set(safeLayout.filter((id):id is string=>id!==null))
         const positions=[...safeLayout.filter(id=>id===null||groupRooms.some(r=>roomKey(r)===id)),...groupRooms.map(r=>roomKey(r)).filter(id=>!used.has(id))]
         const move=(from:string,to:number)=>{
