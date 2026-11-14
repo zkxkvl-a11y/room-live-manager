@@ -1,19 +1,35 @@
-# PATCH 05 — Cloudflare Workers 알림 연동 체크리스트
+# PATCH 05 — Cloudflare Workers 알림 서버
 
-## 안전한 단계별 도입
-1. Web Push 공개 VAPID 키와 Cloudflare Worker HTTPS URL을 준비한다.
-2. Worker는 Firebase ID 토큰의 서명·발급자·대상 프로젝트·만료 시간을 검증한다.
-3. Worker는 인증된 사용자 UID에 대해서만 구독을 등록·삭제한다. 옵저버/실무자/관리자 권한은 서버에서 재확인한다.
-4. 구독 endpoint 및 p256dh/auth 키는 서버에만 저장하고 공개 Firebase 경로에 노출하지 않는다.
-5. Workers Cron은 서버 측 방 종료 시간을 조회하고, 중복 방지 키(room UID + end timestamp)를 원자적으로 기록한 뒤 알림을 발송한다.
-6. 기기별 알림 수신, 재시도, 중복 발송, 권한 거부, 구독 만료, 백그라운드 동작을 검증한다.
+## 구현 현황
+- `workers/notifications/src/index.js`: Firebase ID 토큰의 Google 공개키 서명·aud·iss·exp 검증
+- Firebase 서비스 계정 OAuth 토큰을 이용한 RTDB 권한 조회 및 방 종료 감지
+- 인증된 사용자만 구독 등록/삭제, 서버에서 역할 재검증
+- D1 구독 저장 및 `INSERT OR IGNORE` 원자적 중복 발송 방지
+- 1분 Cron에서 최근 3분 이내 종료된 방 감지, Web Push 발송, 만료 구독 정리
+- 전송 실패는 로그에 기록. 중복 방지를 위해 동일 종료 이벤트는 자동 재전송하지 않는 at-most-once 방식
+- `public/room-live-sw.js` 서비스 워커와 `src/services/push-client.ts` 구독 클라이언트는 기존 코드에 포함
 
-## 현재 구현 범위
-- 알림 전용 서비스 워커의 수신·클릭 처리.
-- 브라우저 지원 확인, 사용자 권한 요청, VAPID 구독 및 인증 토큰 전송 클라이언트.
-- 아직 Workers 서버, Firebase 서비스 계정 인증, Web Push 암호화/발송 및 Cron은 구현되지 않았다.
-- 따라서 현재 단계에서 서버 URL/공개키를 설정하거나 실제 운영 알림을 활성화하지 않는다.
-- 운영 DB 및 Firebase Rules 변경 없음.
+## 배포 준비 — 수동 작업 필요
+1. Cloudflare D1 데이터베이스 `room-live-notifications` 생성 후 `schema.sql` 적용
+2. `wrangler.toml`의 D1 바인딩 주석을 풀고 실제 database_id 설정
+3. `[triggers]` 아래 `crons = ["* * * * *"]` 활성화
+4. Workers Secret에 `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_PUBLIC_KEY`, `VAPID_SUBJECT`, `ADMIN_UID` 설정
+5. 일반 변수 `APP_ORIGIN`에 정확한 Cloudflare Pages HTTPS origin 지정
+6. 서비스 계정의 최소 RTDB 읽기 권한, D1 및 Cloudflare 비용/무료 한도 검토
+7. `workers/notifications`에서 `npm install` 후 `npx wrangler deploy`
+8. 앱 측 `subscribePush` 호출은 아직 UI에 연결되지 않았음. Worker URL 및 공개 VAPID 키를 확인한 후 별도 연결 필요
 
-## 필요한 운영 준비
-Cloudflare Worker 배포 권한, Worker URL, VAPID 공개/비공개 키, Firebase 서비스 계정 자격증명(Workers Secret), 구독 저장소 및 권한 규칙 검토. **비밀키를 GitHub에 커밋하지 말 것.**
+**절대로 서비스 계정 개인키, VAPID 개인키, 구독 endpoint를 GitHub에 올리지 말 것.**
+**운영 Firebase Rules/DB는 이 커밋에서 수정하지 않음.**
+
+## 필수 실기기 검증
+- 인증 없는 요청 401, 비인가 UID 403, 잘못된 Origin 403
+- 로그인 사용자 구독 등록 및 삭제
+- 방 종료 시 1회 발송, 같은 종료 시각 중복 발송 0건
+- 종료 시각 변경 후 새로운 이벤트로 발송
+- 404/410 구독 자동 삭제, 다른 오류 로그 확인
+- Android Chrome 백그라운드 수신 및 앱 포커스
+- 네트워크 오류, Cron 지연, Cloudflare 무료 사용량 및 권한 변경 시나리오
+
+## 현재 제한
+서버 코드와 CI는 추가됐지만 실제 Cloudflare Worker 배포, D1/Secrets 설정, 앱 UI 연결, 실제 푸시 발송 검증은 미완료다. 따라서 PATCH 05는 아직 완료 상태가 아니다.
