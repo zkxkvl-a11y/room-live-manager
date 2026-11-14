@@ -10,14 +10,14 @@ const vapidPublicKey=import.meta.env.VITE_WEB_PUSH_PUBLIC_KEY as string|undefine
 function decodeVapid(key:string){const padding='='.repeat((4-key.length%4)%4);const raw=atob((key+padding).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(raw,c=>c.charCodeAt(0))}
 async function savePushSubscription(uid:string,prefs:Preferences){
   if(!('serviceWorker' in navigator)||!('PushManager' in window))throw new Error('이 기기는 백그라운드 푸시를 지원하지 않습니다.')
-  if(!vapidPublicKey)throw new Error('서버 푸시 인증키가 아직 설정되지 않았습니다.')
+  if(!vapidPublicKey)throw new Error('Cloudflare Pages에 VITE_WEB_PUSH_PUBLIC_KEY가 없습니다.')
+  if(!prefs.enabled||!prefs.shopIds.length||(!prefs.ten&&!prefs.five))throw new Error('알림 사용과 수신 가게·시점을 먼저 선택해 주세요.')
   const registration=await navigator.serviceWorker.ready
   let subscription=await registration.pushManager.getSubscription()
   if(!subscription){subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:decodeVapid(vapidPublicKey)})}
   const json=subscription.toJSON()
   const endpoint=subscription.endpoint
   const deviceId=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(endpoint)).then(bytes=>Array.from(new Uint8Array(bytes)).map(x=>x.toString(16).padStart(2,'0')).join(''))
-  if(!prefs.enabled||!prefs.shopIds.length||(!prefs.ten&&!prefs.five))throw new Error('알림 사용과 수신 가게·시점을 먼저 선택해 주세요.')
   await set(ref(database,'roomLivePushSubscriptions/'+uid+'/'+deviceId),{endpoint,keys:json.keys??{},shopIds:prefs.shopIds,ten:prefs.ten,five:prefs.five,enabled:true,updatedAt:Date.now()})
   return deviceId
 }
@@ -53,7 +53,7 @@ export default function RoomAlerts({uid,shops,groups,rooms,now,show,onClose}:{ui
           return
         }
         await savePushSubscription(uid,prefs)
-        if(!cancelled)setPushStatus('기기 푸시 등록됨 · 서버 발송 설정 필요')
+        if(!cancelled)setPushStatus('기기 푸시 구독 저장 완료 · 서버 발송 여부는 별도 확인 필요')
       }catch(error){if(!cancelled)setPushStatus('기기 푸시 동기화 실패: '+(error instanceof Error?error.message:String(error)))}
     }
     void sync()
@@ -85,12 +85,13 @@ export default function RoomAlerts({uid,shops,groups,rooms,now,show,onClose}:{ui
   },[uid,rooms,groups,shops,now,prefs])
   async function requestPermission(){
     if(!('Notification' in window)){setMessage('이 브라우저에서는 알림을 지원하지 않습니다.');return}
+    if(!prefs.enabled||!prefs.shopIds.length||(!prefs.ten&&!prefs.five)){setPushStatus('알림 사용, 수신 가게, 알림 시점을 먼저 선택하세요.');return}
     try{
       const result=await Notification.requestPermission()
       setPermission(result)
       if(result==='granted'){
         setMessage('알림 권한이 허용되었습니다.')
-        try{await savePushSubscription(uid,prefs);setPushStatus('기기 푸시 등록됨 · 서버 발송 설정 필요')}catch(error){setPushStatus(error instanceof Error?error.message:'기기 푸시 등록 실패')}
+        try{await savePushSubscription(uid,prefs);setPushStatus('기기 푸시 구독 저장 완료 · 서버 발송 여부는 별도 확인 필요')}catch(error){setPushStatus(error instanceof Error?error.message:'기기 푸시 등록 실패')}
       }
       else setMessage('알림 권한이 허용되지 않았습니다. 앱 내부 알림은 계속 사용할 수 있습니다.')
     }catch{setMessage('알림 권한 요청에 실패했습니다.')}
