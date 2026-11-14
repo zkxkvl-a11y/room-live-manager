@@ -1,0 +1,22 @@
+name: PATCH 05 Worker validation
+on:
+  push:
+    paths:
+      - 'workers/notifications/**'
+      - '.github/workflows/worker-validation.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workers/notifications
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: npx wrangler deploy --dry-run --outdir /tmp/room-live-worker-build
