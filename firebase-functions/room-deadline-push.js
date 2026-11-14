@@ -29,15 +29,21 @@ exports.roomDeadlinePush=onSchedule({schedule:'every 1 minutes',timeZone:'Asia/S
    const runId=String(room.runStartedAt||room.started)
    const recipients=Object.entries(allowed).flatMap(([uid,devices])=>Object.entries(devices||{}).filter(([,device])=>device?.enabled&&Array.isArray(device.shopIds)&&device.shopIds.includes(shopId)&&(minutes===10?device.ten:device.five)&&device.endpoint&&device.keys?.auth&&device.keys?.p256dh).map(([deviceId,device])=>({uid,deviceId,device})))
    if(!recipients.length)continue
-   const marker=db.ref('roomLivePushSent/'+id+'/'+runId+'/'+room.ends+'/'+minutes)
-   const claim=await marker.transaction(current=>current===null?now:undefined,undefined,false)
-   if(!claim.committed)continue
    for(const {uid,deviceId,device} of recipients){
+     // Claim separately per device so one failed delivery does not suppress others.
+     const marker=db.ref('roomLivePushSent/'+id+'/'+runId+'/'+room.ends+'/'+minutes+'/'+uid+'/'+deviceId)
+     const claim=await marker.transaction(current=>current===null?now:undefined,undefined,false)
+     if(!claim.committed)continue
      try{
       await webpush.sendNotification({endpoint:device.endpoint,keys:device.keys},JSON.stringify({title:'ROOM LIVE 종료 알림',body:room.id+' · 종료 '+minutes+'분 전',tag:'room-'+id+'-'+minutes,url:'/'}),{TTL:120,urgency:'high'})
      }catch(error){
-      if(error.statusCode===404||error.statusCode===410)await db.ref('roomLivePushSubscriptions/'+uid+'/'+deviceId).remove()
-      else console.error('Push failed',error.statusCode||String(error))
+      if(error.statusCode===404||error.statusCode===410){
+       await db.ref('roomLivePushSubscriptions/'+uid+'/'+deviceId).remove()
+      }else{
+       console.error('Push failed',error.statusCode||String(error))
+       // Allow a subsequent scheduler invocation to retry within the alert window.
+       await marker.remove()
+      }
      }
    }
   }
