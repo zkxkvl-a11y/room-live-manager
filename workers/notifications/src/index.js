@@ -44,7 +44,7 @@ async function authorized(env,uid,token){
   return role==='worker'||role==='staff'||role==='observer';
 }
 function values(v){return Array.isArray(v)?v.filter(Boolean):v&&typeof v==='object'?Object.values(v).filter(Boolean):[]}
-async function sendNotifications(env,roomName,eventId){
+async function sendNotifications(env,roomName,eventId,minutesBefore=0){
   webpush.setVapidDetails(env.VAPID_SUBJECT,env.VAPID_PUBLIC_KEY,env.VAPID_PRIVATE_KEY);
   const rows=await env.DB.prepare('SELECT id,uid,subscription FROM subscriptions').all();
   const token=await accessToken(env);
@@ -54,7 +54,7 @@ async function sendNotifications(env,roomName,eventId){
     try{
       if(!allowed.has(row.uid))allowed.set(row.uid,await authorized(env,row.uid,token));
       if(!allowed.get(row.uid)){await env.DB.prepare('DELETE FROM subscriptions WHERE id=?').bind(row.id).run();continue}
-      await webpush.sendNotification(JSON.parse(row.subscription),JSON.stringify({title:'ROOM LIVE · 시간 종료',body:roomName+' 방 이용 시간이 종료됐습니다.',tag:eventId}),{TTL:120,urgency:'normal'});
+      await webpush.sendNotification(JSON.parse(row.subscription),JSON.stringify({title:'ROOM LIVE · 시간 종료',body:roomName+(minutesBefore>0?' 방 종료 '+minutesBefore+'분 전입니다.':' 방 이용 시간이 종료됐습니다.'),tag:eventId}),{TTL:120,urgency:'normal'});
       sent++;
     }catch(e){
       if(e.statusCode===404||e.statusCode===410)await env.DB.prepare('DELETE FROM subscriptions WHERE id=?').bind(row.id).run();
@@ -93,13 +93,22 @@ export default {
     if(!root)return;
     const now=Date.now(),rooms=values(root.rooms);
     for(const room of rooms){
-      if(!room||typeof room.ends!=='number'||room.ends>now||room.ends<now-180000||!room.started)continue;
-      const key=await sha(String(room.uid||room.id)+'|'+room.ends);
-      const result=await env.DB.prepare('INSERT OR IGNORE INTO deliveries(event_id,room_name,created_at) VALUES(?,?,?)').bind(key,String(room.id||'방'),now).run();
-      if(result.meta.changes!==1)continue;
-      // Deduplication is at-most-once per room/end timestamp. Failures are logged, not blindly resent.
-      const outcome=await sendNotifications(env,String(room.id||'방'),key);
-      if(outcome.failed)console.error('push delivery failures',outcome.failed);
+      if(!room||typeof room.ends!=='number'||!room.started||room.ends<=room.started)continue;
+      const remaining=room.ends-now;
+      // One-minute cron: allow up to 90 seconds of delay without sending stale alerts.
+      const windows=[{minutes:10,offset:600000},{minutes:5,offset:300000},{minutes:0,offset:0}];
+      for(const window of windows){
+        const delta=remaining-window.offset;
+        if(delta>0||delta < -90000)continue;
+        const roomId=String(room.uid||room.id||'');
+        if(!roomId)continue;
+        const key=await sha(roomId+'|'+room.ends+'|'+window.minutes);
+        const result=await env.DB.prepare('INSERT OR IGNORE INTO deliveries(event_id,room_name,created_at) VALUES(?,?,?)').bind(key,String(room.id||'방'),now).run();
+        if(result.meta.changes!==1)continue;
+        const outcome=await sendNotifications(env,String(room.id||'방'),key,window.minutes);
+        console.log('push dispatch',JSON.stringify({room:roomId,minutesBefore:window.minutes,...outcome}));
+        if(outcome.failed)console.error('push delivery failures',outcome.failed);
+      }
     }
     await env.DB.prepare('DELETE FROM deliveries WHERE created_at < ?').bind(now-30*86400000).run();
   }
