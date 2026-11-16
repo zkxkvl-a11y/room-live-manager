@@ -565,3 +565,13 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .arrival-summary{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}
 .arrival-summary span{background:#59462c;border:1px solid #987447;color:#ffdda5;padding:7px 10px;border-radius:9px;font-size:12px}
 .arrival-modal select{margin-top:14px}
+
+/* Explicit attendance sections, matching the room overview dividers. */
+.attendance-status-section{margin:18px 0 26px;min-width:0}
+.attendance-status-heading{display:flex;align-items:center;gap:14px;margin:0 0 15px;color:#edf4ff;font-size:17px;font-weight:800;text-align:center}
+.attendance-status-heading::before,.attendance-status-heading::after{content:"";height:1px;background:#6889a9;flex:1;min-width:10px}
+.attendance-status-heading span{white-space:nowrap}
+.attendance-status-section .attendance-list{margin:0;align-items:stretch}
+.attendance-status-arriving .attendance-status-heading{color:#f4c17e}
+.attendance-status-waiting .attendance-status-heading{color:#a5f2dc}
+.attendance-status-section .attendance-item{margin-top:0}
