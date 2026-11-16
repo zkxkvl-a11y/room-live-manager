@@ -1,6 +1,6 @@
 export type ObserverRoom={uid:string;name:string;shop:string;group:string;started:number|null;ends:number|null;headcount:number;staffNames?:string[];memo?:string;cleaning?:boolean}
 export type ObserverSnapshot={rooms:ObserverRoom[];updatedAt:number;waitingNames?:string[]}
-export type Attendance={id:string;name:string;working:boolean;teamId?:string;archivedAt?:number}
+export type Attendance={id:string;name:string;working:boolean;arrivalAt?:number|null;teamId?:string;archivedAt?:number}
 export type AttendanceShift={id:string;tag:string;clockIn:number;clockOut:number|null}
 export type AttendanceTeam={id:string;name:string}
 export type Shop = { id: string; name: string }
