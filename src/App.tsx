@@ -8,7 +8,7 @@ import { onValue, runTransaction, ref, set, remove } from 'firebase/database'
 import { auth, database, roomLiveRef, ADMIN_UID } from './firebase'
 import { loginEmailFromInput, staffEmailFromId } from './staff-login'
 
-import { seed, read, normalizeRemote, format, operatingDay, ledgerDay, kstDate, date } from './store-model'
+import { seed, read, normalizeRemote, sanitizeWings, format, operatingDay, ledgerDay, kstDate, date } from './store-model'
 import { workerViewOf } from './worker-view'
 import { applyCheckout } from './services/checkout'
 import { applyCancelRoom } from './services/cancel-room'
@@ -77,7 +77,7 @@ export default function App() {
         const result=await runTransaction(target,current=>{
           if(current===null)return
           const previous=normalizeRemote(v2Active?{...current,payments:v2PaymentsRef.current} as Store:current as Store)
-          const next=typeof update==='function'?update(previous):update
+          const next=sanitizeWings(typeof update==='function'?update(previous):update)
           return firebaseSafe(v2Active?toOperations(next):next)
         },{applyLocally:false})
         if(!result.committed)throw Error('서버에 저장되지 않았습니다.')
@@ -454,7 +454,7 @@ export default function App() {
       const activeSession=activeSessions[0]
       if(activeSessions.length!==1||!activeSession)return previous
       return {...previous,
-        rooms:previous.rooms.map(r=>roomKey(r)===sourceId?{...r,started:null,ends:null,tags:[],headcount:0,runStartedAt:undefined,memo:''}:roomKey(r)===targetId?{...r,started:source.started,ends:source.ends,tags:[...source.tags],headcount:source.headcount??0,runStartedAt:source.runStartedAt??source.started??undefined,memo:source.memo??''}:r),
+        rooms:previous.rooms.map(r=>roomKey(r)===sourceId?{...r,started:null,ends:null,tags:[],wingPair:undefined,headcount:0,runStartedAt:undefined,memo:''}:roomKey(r)===targetId?{...r,started:source.started,ends:source.ends,tags:[...source.tags],wingPair:source.wingPair,headcount:source.headcount??0,runStartedAt:source.runStartedAt??source.started??undefined,memo:source.memo??''}:r),
         visits:previous.visits.map(v=>v.exited===null&&matches(v,sourceId)?{...v,room:target.id,roomUid:targetId}:v),
         sessions:previous.sessions.map(x=>x.id===activeSession.id?{...x,room:target.id,roomUid:targetId}:x),
         logs:[{id:crypto.randomUUID(),at,room:target.id,roomUid:targetId,action:source.id+' → '+target.id+' 방 이동'},...previous.logs]}
@@ -683,6 +683,19 @@ export default function App() {
     }
     transactionQueue.current=transactionQueue.current.then(operation,operation)
   }
+  function setWingPair(roomId:string){
+    if(!canOperate||!readyRef.current)return
+    const room=store.rooms.find(r=>roomKey(r)===roomId)
+    if(!room)return
+    const pair=chosen.filter(id=>room.tags.includes(id))
+    if(pair.length!==2){notify('같은 방의 직원 2명을 선택해 주세요.');return}
+    setStore(previous=>({...previous,rooms:previous.rooms.map(r=>roomKey(r)===roomId?{...r,wingPair:[pair[0],pair[1]] as [string,string]}:r),logs:[{id:crypto.randomUUID(),at:Date.now(),room:room.id,roomUid:roomId,action:'날개 연결 · '+pair.map(helperName).join(' / ')},...previous.logs]}))
+    setChosen([])
+  }
+  function clearWingPair(roomId:string){
+    if(!canOperate||!readyRef.current)return
+    setStore(previous=>({...previous,rooms:previous.rooms.map(r=>roomKey(r)===roomId?{...r,wingPair:undefined}:r)}))
+  }
   function placeMany(ids:string[],destination:string|null){
     const valid=[...new Set(ids)].filter(id=>attendance.some(h=>h.id===id&&h.working))
     if(!valid.length)return
@@ -898,7 +911,15 @@ export default function App() {
               <div className="room-head"><strong>{r.id}</strong><div className="room-head-controls"><button type="button" className="room-headcount" aria-label={r.id+' 인원수 선택'} aria-expanded={headcountMenu?.id===roomKey(r)} disabled={!canOperate||editing||r.cleaning} onPointerDown={e=>e.stopPropagation()} onPointerUp={e=>e.stopPropagation()} onClick={e=>openHeadcountMenu(e,roomKey(r))}>{r.headcount?r.headcount+'명':'인원'} <span aria-hidden="true">⌄</span></button><span>{roomVisualState==='cleaning'?'청소대기중':roomVisualState==='choice'?'초이스 대기 중':roomVisualState==='critical'?(expired?'시간 종료':'종료 직전'):roomVisualState==='warning'?'종료 임박':roomVisualState==='active'?'진행 중':'대기'}</span></div></div>
               {r.cleaning&&<div className="room-cleaning-message">청소대기중 · 터치하면 빈방</div>}{r.started!==null&&<div className="room-entry-time">{new Date(r.started).toLocaleTimeString('ko-KR',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit',timeZone:'Asia/Seoul'})}</div>}
               <div className="time">{r.cleaning?'청소대기중':r.ends?format(r.ends-now):'--:--:--'}</div>
-              {r.memo?.trim()&&!r.cleaning&&<div className="room-tile-memo" title={r.memo}>📝 {r.memo}</div>}<div className="tags room-inline-staff">{expired&&!r.cleaning&&canOperate&&<div className="expired-room-actions"><button type="button" className="expired-extend" onClick={e=>{e.stopPropagation();extendExpiredRoom(roomKey(r))}}>연장</button><button type="button" className="expired-finish" onClick={e=>{e.stopPropagation();finishRoom(roomKey(r))}}>마무리</button></div>}{!r.cleaning&&<div className="room-staff-after-actions">{r.tags.map(tag=><button type="button" key={tag} className={'room-staff-choice '+(chosen.includes(tag)?'selected':'')} aria-pressed={chosen.includes(tag)} disabled={!canOperate} onClick={e=>{e.stopPropagation();if(!canOperate)return;setChosen(prev=>prev.includes(tag)?prev.filter(x=>x!==tag):[...prev,tag])}}>{helperName(tag)}</button>)}{Array.from({length:Math.max(0,(r.headcount??0)-r.tags.length)},(_,i)=><span key={'vacancy-'+i} className="room-staff-choice room-staff-vacancy" aria-label="부족 인원 1명">빵꾸</span>)}{!r.tags.length&&!(r.headcount??0)&&<span className="room-no-staff">배치 인원 없음</span>}</div>}</div>
+              {r.memo?.trim()&&!r.cleaning&&<div className="room-tile-memo" title={r.memo}>📝 {r.memo}</div>}<div className="tags room-inline-staff">{expired&&!r.cleaning&&canOperate&&<div className="expired-room-actions"><button type="button" className="expired-extend" onClick={e=>{e.stopPropagation();extendExpiredRoom(roomKey(r))}}>연장</button><button type="button" className="expired-finish" onClick={e=>{e.stopPropagation();finishRoom(roomKey(r))}}>마무리</button></div>}{!r.cleaning&&<div className="room-staff-after-actions">{[...(r.wingPair?.length===2&&r.wingPair.every(id=>r.tags.includes(id))?r.wingPair:[]),...r.tags.filter(id=>!r.wingPair?.includes(id))].map(tag=>{
+                const wing=r.wingPair?.length===2&&r.wingPair.every(id=>r.tags.includes(id))?r.wingPair:null
+                const isFirst=wing?.[0]===tag
+                const isSecond=wing?.[1]===tag
+                const staffButton=<button type="button" key={tag} className={'room-staff-choice '+(chosen.includes(tag)?'selected':'')} aria-pressed={chosen.includes(tag)} disabled={!canOperate} onClick={e=>{e.stopPropagation();if(!canOperate)return;setChosen(prev=>prev.includes(tag)?prev.filter(x=>x!==tag):[...prev,tag])}}>{helperName(tag)}</button>
+                if(isFirst)return <span key={tag} className="wing-first">{staffButton}<span className="wing-bridge"><small>날개</small><span aria-hidden="true">━●━</span></span></span>
+                if(isSecond)return staffButton
+                return staffButton
+              })}{canOperate&&r.tags.length>=2&&chosen.filter(id=>r.tags.includes(id)).length===2&&<button type="button" className="wing-action" onClick={e=>{e.stopPropagation();setWingPair(roomKey(r))}}>날개 연결</button>}{canOperate&&r.wingPair&&<button type="button" className="wing-clear" onClick={e=>{e.stopPropagation();clearWingPair(roomKey(r))}}>날개 해제</button>}{Array.from({length:Math.max(0,(r.headcount??0)-r.tags.length)},(_,i)=><span key={'vacancy-'+i} className="room-staff-choice room-staff-vacancy" aria-label="부족 인원 1명">빵꾸</span>)}{!r.tags.length&&!(r.headcount??0)&&<span className="room-no-staff">배치 인원 없음</span>}</div>}</div>
               {editing&&<div className="room-tools"><button onClick={e=>{e.stopPropagation();askInput('방 이름 변경',r.id,value=>{const name=value.trim().toUpperCase();if(!name||name===r.id)return;if(duplicated(name,g.shopId,roomKey(r))){setRemoteError('같은 가게에 이미 등록된 방 이름입니다.');return}setStore(v=>({...v,rooms:v.rooms.map(x=>roomKey(x)===roomKey(r)?{...x,id:name}:x),logs:v.logs.map(x=>sameRoom(x,roomKey(r))?{...x,room:name}:x),visits:v.visits.map(x=>sameRoom(x,roomKey(r))?{...x,room:name}:x),sessions:v.sessions.map(x=>sameRoom(x,roomKey(r))?{...x,room:name}:x),payments:v.payments.map(x=>sameRoom(x,roomKey(r))?{...x,room:name}:x)}))})}}>이름</button><button onClick={e=>{e.stopPropagation();if(r.started||r.tags.length){setRemoteError('진행 중인 방은 이동할 수 없습니다.');return}askInput('이동할 묶음 이름',g.name,value=>{const dest=value.trim();const target=groups.find(x=>x.name===dest&&x.id!==g.id);if(!target){setRemoteError('이동할 묶음을 찾을 수 없습니다.');return}if(duplicated(r.id,target.shopId)){setRemoteError('이동할 가게에 같은 이름의 방이 있습니다.');return}setStore(v=>({...v,rooms:v.rooms.map(x=>roomKey(x)===roomKey(r)?{...x,groupId:target.id}:x),groups:(v.groups??[]).map(x=>x.id===g.id?{...x,layout:x.layout.map(y=>y===roomKey(r)?null:y)}:x)}))})}}>이동</button><button onClick={e=>{e.stopPropagation();if(r.started||r.tags.length){setRemoteError('이용 중인 방은 삭제할 수 없습니다.');return}askConfirm('방 삭제',r.id+' 방을 삭제할까요?',()=>setStore(v=>({...v,rooms:v.rooms.filter(x=>roomKey(x)!==roomKey(r)),groups:(v.groups??[]).map(x=>({...x,layout:x.layout.map(y=>y===roomKey(r)?null:y)}))})))}}>삭제</button></div>}
               
 

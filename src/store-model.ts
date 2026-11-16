@@ -5,7 +5,7 @@ export type AttendanceShift={id:string;tag:string;clockIn:number;clockOut:number
 export type AttendanceTeam={id:string;name:string}
 export type Shop = { id: string; name: string }
 export type Group = { id: string; shopId: string; name: string; layout: (string | null)[] }
-export type Room = { id: string; uid?: string; groupId?: string; started: number | null; ends: number | null; tags: string[]; headcount?:number; runStartedAt?:number; cleaning?:boolean; memo?:string }
+export type Room = { id: string; uid?: string; groupId?: string; started: number | null; ends: number | null; tags: string[]; headcount?:number; runStartedAt?:number; cleaning?:boolean; memo?:string; wingPair?:[string,string] }
 export type Log = { id: string; at: number; room: string; roomUid?: string; action: string }
 export type Visit = { id: string; tag: string; room: string; roomUid?: string; entered: number; exited: number | null }
 export type Session = { id: string; room: string; roomUid?: string; started: number; ended: number | null }
@@ -36,13 +36,21 @@ export function read(): Store {
   } catch { return seed }
 }
 // Realtime Database omits empty arrays and null-only fields; restore the UI's array contract.
+// A wing is valid only while both distinct staff remain assigned to the same room.
+export function sanitizeWings(store:Store):Store {
+  return {...store,rooms:store.rooms.map(room=>{
+    const pair=room.wingPair
+    return pair&&pair.length===2&&pair[0]!==pair[1]&&pair.every(id=>room.tags.includes(id))
+      ? room : {...room,wingPair:undefined}
+  })}
+}
 export function normalizeRemote(raw: Store): Store {
   const array = <T,>(value:unknown):T[] =>
     Array.isArray(value) ? value as T[] :
     value && typeof value==='object' ? Object.values(value) as T[] : []
   const rooms=array<Room>(raw.rooms).map(r=>({...r,tags:array<string>(r.tags),started:r.started??null,ends:r.ends??null}))
   const groups=array<Group>(raw.groups).map(g=>({...g,layout:Array.isArray(g.layout)?g.layout:[]}))
-  return {...seed,...raw,rooms,tags:array<string>(raw.tags),attendance:array<Attendance>(raw.attendance),attendanceTeams:array<AttendanceTeam>(raw.attendanceTeams),attendanceShifts:array<AttendanceShift>(raw.attendanceShifts),logs:array<Log>(raw.logs),visits:array<Visit>(raw.visits),sessions:array<Session>(raw.sessions),roomHistory:array<RoomHistory>(raw.roomHistory),payments:array<Payment>(raw.payments),shops:array<Shop>(raw.shops),groups}
+  return sanitizeWings({...seed,...raw,rooms,tags:array<string>(raw.tags),attendance:array<Attendance>(raw.attendance),attendanceTeams:array<AttendanceTeam>(raw.attendanceTeams),attendanceShifts:array<AttendanceShift>(raw.attendanceShifts),logs:array<Log>(raw.logs),visits:array<Visit>(raw.visits),sessions:array<Session>(raw.sessions),roomHistory:array<RoomHistory>(raw.roomHistory),payments:array<Payment>(raw.payments),shops:array<Shop>(raw.shops),groups})
 }
 export const format = (ms: number) => { const n = Math.max(0, Math.ceil(ms / 1000)); return [Math.floor(n / 3600), Math.floor(n % 3600 / 60), n % 60].map(x => String(x).padStart(2, '0')).join(':') }
 // KST operating day: 17:00 inclusive through next-day 13:00 exclusive.
