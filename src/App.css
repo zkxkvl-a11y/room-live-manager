@@ -556,3 +556,12 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .room-inline-staff .room-staff-after-actions{display:flex;flex-wrap:wrap;align-items:center;gap:5px;width:100%;min-width:0}
 .room-inline-staff .room-staff-after-actions .room-staff-choice{flex:0 0 auto}
 .room-inline-staff .room-no-staff{font-size:12px;color:#c0d0e3}
+
+/* Arrival planning: status grouping and near-term summary */
+.attendance-item.arriving{border:1px solid #c38e42;background:#322d30}
+.attendance-item.arriving .attendance-toggle span{color:#f4c17e}
+.attendance-item.attendance-group-start{position:relative;margin-top:20px}
+.attendance-item.attendance-group-start:before{content:"";position:absolute;top:-13px;left:0;right:0;border-top:1px solid #60738d}
+.arrival-summary{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}
+.arrival-summary span{background:#59462c;border:1px solid #987447;color:#ffdda5;padding:7px 10px;border-radius:9px;font-size:12px}
+.arrival-modal select{margin-top:14px}
