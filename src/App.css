@@ -575,3 +575,17 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .attendance-status-arriving .attendance-status-heading{color:#f4c17e}
 .attendance-status-waiting .attendance-status-heading{color:#a5f2dc}
 .attendance-status-section .attendance-item{margin-top:0}
+
+/* Restore the existing green attendance highlight for every checked-in waiting worker. */
+.attendance-status-waiting .attendance-item.waiting{border:2px solid #24b8a1;background:#173c3f;transition:border-color .16s ease,background-color .16s ease}
+.attendance-status-waiting .attendance-item.waiting .attendance-toggle span{color:#61e5c6}
+.attendance-status-arriving .attendance-item.arriving{border:2px solid #c38e42}
+.attendance-status-absent .attendance-item.absent{border:1px solid #44536d}
+/* Wing connection is an inline compact badge, not a larger staff tile. */
+.room-staff-after-actions .wing-first{display:inline-flex;align-items:center;gap:0;flex:0 0 auto}
+.wing-first>.room-staff-choice{flex:0 0 auto}
+.wing-bridge{position:relative;display:inline-flex;align-items:flex-end;justify-content:center;min-width:35px;height:39px;color:#83d6df;font-size:11px;font-weight:800}
+.wing-bridge small{position:absolute;top:0;left:50%;transform:translateX(-50%);padding:1px 4px;background:#247a83;border-radius:4px;color:white;font-size:9px;white-space:nowrap}
+.wing-bridge>span{padding-bottom:5px;white-space:nowrap}
+.room-staff-after-actions .wing-action,.room-staff-after-actions .wing-clear{font-size:11px;padding:6px 8px;min-height:30px;border-radius:7px;background:#205e69;border:1px solid #56b3c2;color:#eaffff}
+.room-staff-after-actions .wing-clear{background:#39435a;border-color:#6c829d}
