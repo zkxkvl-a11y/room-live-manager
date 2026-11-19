@@ -443,17 +443,16 @@ export default function App() {
   function moveActiveRoom(sourceId:string,targetId:string){
     if(!canOperate||!readyRef.current){notify('서버 연결 또는 수정 권한을 확인해 주세요.');return}
     const at=Date.now()
-    let failure=''
     setStore(previous=>{
       const source=previous.rooms.find(r=>roomKey(r)===sourceId)
       const target=previous.rooms.find(r=>roomKey(r)===targetId)
       const groupShop=(room:Room)=>previous.groups?.find(g=>g.id===room.groupId)?.shopId
       const matches=(x:{room:string;roomUid?:string},uid:string)=>x.roomUid?x.roomUid===uid:x.room===previous.rooms.find(r=>roomKey(r)===uid)?.id
-      if(!source||!target||sourceId===targetId||source.started===null||source.cleaning){failure='이동할 방의 진행 상태를 확인해 주세요.';return previous}
-      if(groupShop(source)!==groupShop(target)){failure='다른 가게의 방으로 이동할 수 없습니다.';return previous}
-      if(target.started!==null||target.cleaning||target.tags.length>0||(target.headcount??0)>0||Boolean(target.memo?.trim())||previous.sessions.some(x=>x.ended===null&&matches(x,targetId))){failure='선택한 방은 빈방이 아닙니다.';return previous}
+      if(!source||!target||sourceId===targetId||source.started===null||source.cleaning){throw Error('이동할 방의 진행 상태를 확인해 주세요.')}
+      if(groupShop(source)!==groupShop(target)){throw Error('다른 가게의 방으로 이동할 수 없습니다.')}
+      if(target.started!==null||target.cleaning||target.tags.length>0||(target.headcount??0)>0||Boolean(target.memo?.trim())||previous.sessions.some(x=>x.ended===null&&matches(x,targetId))){throw Error('선택한 방은 빈방이 아닙니다.')}
       const activeSessions=previous.sessions.filter(x=>x.ended===null&&matches(x,sourceId))
-      if(activeSessions.length>1){failure='진행 기록이 중복되어 이동할 수 없습니다. 관리자 확인이 필요합니다.';return previous}
+      if(activeSessions.length>1){throw Error('진행 기록이 중복되어 이동할 수 없습니다. 관리자 확인이 필요합니다.')}
       const activeSession=activeSessions[0]
       return {...previous,
         rooms:previous.rooms.map(r=>roomKey(r)===sourceId?{...r,started:null,ends:null,tags:[],wingPair:undefined,headcount:0,runStartedAt:undefined,memo:''}:roomKey(r)===targetId?{...r,started:source.started,ends:source.ends,tags:[...source.tags],wingPair:source.wingPair,headcount:source.headcount??0,runStartedAt:source.runStartedAt??source.started??undefined,memo:source.memo??''}:r),
@@ -461,7 +460,6 @@ export default function App() {
         sessions:activeSession?previous.sessions.map(x=>x.id===activeSession.id?{...x,room:target.id,roomUid:targetId}:x):[{id:crypto.randomUUID(),room:target.id,roomUid:targetId,started:source.runStartedAt??source.started,ended:null},...previous.sessions],
         logs:[{id:crypto.randomUUID(),at,room:target.id,roomUid:targetId,action:source.id+' → '+target.id+' 방 이동'},...previous.logs]}
     })
-    if(failure){notify(failure);return}
     setRoomMove(null);setRoomMoveTarget('');setDetail(null);setChosen([])
   }
   function updateRoomStartTime(id:string,value:string){
