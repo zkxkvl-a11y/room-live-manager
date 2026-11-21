@@ -711,7 +711,7 @@ export default function App() {
     if(!valid.length)return
     const at=Date.now()
     setStore(s=>{
-      const currentValid=valid.filter(id=>s.attendance?.some(h=>h.id===id&&h.working&&!h.archivedAt))
+      const currentValid=destination===null?valid:valid.filter(id=>s.attendance?.some(h=>h.id===id&&h.working&&!h.archivedAt))
       if(currentValid.length!==valid.length)throw Error('출근 상태가 변경된 직원이 있습니다. 다시 선택해 주세요.')
       const target=s.rooms.find(r=>roomKey(r)===destination)
       if(destination&&(!target||target.cleaning))return s
