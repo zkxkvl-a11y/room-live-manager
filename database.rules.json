@@ -98,6 +98,15 @@
           ".validate": true
         }
       }
+    },
+    "roomLivePushSubscriptions": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid && (auth.uid === 'P4ksHlEQiqNhQRRHKdPRAaE8Srb2' || root.child('roomLiveAccess').child(auth.uid).val() === 'worker' || root.child('roomLiveAccess').child(auth.uid).val() === 'staff' || root.child('roomLiveAccess').child(auth.uid).val() === 'observer')",
+        "$deviceId": {
+          ".validate": "!newData.exists() || (newData.hasChildren(['endpoint','keys','shopIds','enabled','ten','five','updatedAt']) && newData.child('endpoint').isString() && newData.child('endpoint').val().length <= 2048 && newData.child('keys').hasChildren(['auth','p256dh']) && newData.child('enabled').isBoolean() && newData.child('ten').isBoolean() && newData.child('five').isBoolean() && newData.child('updatedAt').isNumber())"
+        }
+      }
     }
   }
 }

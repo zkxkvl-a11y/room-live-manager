@@ -8,8 +8,8 @@ const vapidContact=defineSecret('ROOM_LIVE_VAPID_CONTACT')
 const list=value=>Array.isArray(value)?value:Object.values(value||{})
 exports.roomDeadlinePush=onSchedule({schedule:'every 1 minutes',timeZone:'Asia/Seoul',region:'asia-southeast1',secrets:[vapidPrivate,vapidPublic,vapidContact],timeoutSeconds:60},async()=>{
  const db=getDatabase()
- const [opsSnap,legacySnap,subsSnap]=await Promise.all([db.ref('roomLiveV2/operations').get(),db.ref('roomLive').get(),db.ref('roomLivePushSubscriptions').get()])
- const source=opsSnap.exists()?opsSnap.val():legacySnap.val()
+ const [configSnap,opsSnap,legacySnap,subsSnap]=await Promise.all([db.ref('roomLiveV2/config/active').get(),db.ref('roomLiveV2/operations').get(),db.ref('roomLive').get(),db.ref('roomLivePushSubscriptions').get()])
+ const source=configSnap.val()===true?opsSnap.val():legacySnap.val()
  if(!source)return
  const groups=list(source.groups),rooms=list(source.rooms),subs=subsSnap.val()||{},now=Date.now()
  webpush.setVapidDetails(vapidContact.value(),vapidPublic.value(),vapidPrivate.value())
@@ -27,20 +27,24 @@ exports.roomDeadlinePush=onSchedule({schedule:'every 1 minutes',timeZone:'Asia/S
    if(remaining>minutes*60000||remaining<=(minutes-1)*60000)continue
    const id=String(room.uid||room.id).replace(/[^a-zA-Z0-9_-]/g,'_')
    const runId=String(room.runStartedAt||room.started)
-   const marker=db.ref('roomLivePushSent/'+id+'/'+runId+'/'+room.ends+'/'+minutes)
-   const claim=await marker.transaction(current=>current===null?now:undefined,undefined,false)
-   if(!claim.committed)continue
-   for(const [uid,devices] of Object.entries(allowed)){
-    for(const [deviceId,device] of Object.entries(devices||{})){
-     if(!device?.enabled||!device.shopIds?.includes(shopId)||!(minutes===10?device.ten:device.five))continue
-     if(!device.endpoint||!device.keys?.auth||!device.keys?.p256dh)continue
+   const recipients=Object.entries(allowed).flatMap(([uid,devices])=>Object.entries(devices||{}).filter(([,device])=>device?.enabled&&Array.isArray(device.shopIds)&&device.shopIds.includes(shopId)&&(minutes===10?device.ten:device.five)&&device.endpoint&&device.keys?.auth&&device.keys?.p256dh).map(([deviceId,device])=>({uid,deviceId,device})))
+   if(!recipients.length)continue
+   for(const {uid,deviceId,device} of recipients){
+     // Claim separately per device so one failed delivery does not suppress others.
+     const marker=db.ref('roomLivePushSent/'+id+'/'+runId+'/'+room.ends+'/'+minutes+'/'+uid+'/'+deviceId)
+     const claim=await marker.transaction(current=>current===null?now:undefined,undefined,false)
+     if(!claim.committed)continue
      try{
       await webpush.sendNotification({endpoint:device.endpoint,keys:device.keys},JSON.stringify({title:'ROOM LIVE 종료 알림',body:room.id+' · 종료 '+minutes+'분 전',tag:'room-'+id+'-'+minutes,url:'/'}),{TTL:120,urgency:'high'})
      }catch(error){
-      if(error.statusCode===404||error.statusCode===410)await db.ref('roomLivePushSubscriptions/'+uid+'/'+deviceId).remove()
-      else console.error('Push failed',error.statusCode||String(error))
+      if(error.statusCode===404||error.statusCode===410){
+       await db.ref('roomLivePushSubscriptions/'+uid+'/'+deviceId).remove()
+      }else{
+       console.error('Push failed',error.statusCode||String(error))
+       // Allow a subsequent scheduler invocation to retry within the alert window.
+       await marker.remove()
+      }
      }
-    }
    }
   }
  }
